@@ -41,6 +41,16 @@ const $estado = document.getElementById('estado');
 const $salida = document.getElementById('salida');
 const $listo = document.getElementById('listo');
 
+// Sello de origen. Esta herramienta y revisar-catalogo.html escriben el MISMO
+// archivo (_salida-dev.json), y dos corridas producen resultados que se ven
+// identicos, asi que sin sello no hay como saber ni de cual herramienta ni de
+// cual version viene lo que se esta leyendo. Se sube VERSION cuando cambia lo
+// que la herramienta hace.
+const HERRAMIENTA = 'explorar';
+const VERSION = 1;
+$listo.insertAdjacentHTML('beforebegin',
+  `<p style="opacity:.6;font-size:.85em">herramienta ${HERRAMIENTA} v${VERSION}</p>`);
+
 // NO llamar a esta variable `msal`: taparia el global del bundle UMD.
 const pca = new msal.PublicClientApplication({
   auth: {
@@ -124,18 +134,27 @@ $btn.addEventListener('click', async () => {
     // Dejarlo en un archivo local para no copiar y pegar a mano.
     let guardado = false;
     try {
+      const informe = {
+        herramienta: HERRAMIENTA,
+        version: VERSION,
+        generado: new Date().toISOString(),
+        unidades: resultado
+      };
       const r = await fetch('/guardar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(resultado, null, 2)
+        body: JSON.stringify(informe, null, 2)
       });
       guardado = r.ok;
     } catch (_) {}
 
     $listo.style.display = 'block';
+    // El aviso incluye el sello para que lo que le digas a Claude identifique
+    // la corrida: un "listo" a secas no distingue esta de una de hace dos dias.
+    const sello = `${HERRAMIENTA} v${VERSION}, ${new Date().toLocaleTimeString('es-MX')}`;
     $listo.textContent = guardado
-      ? 'Listo. El resultado quedó guardado en app/_salida-dev.json — avísale a Claude.'
-      : 'Listo, pero no se pudo guardar el archivo. Copia lo de arriba y pégaselo a Claude.';
+      ? `Listo (${sello}). El resultado quedó guardado en app/_salida-dev.json — dile a Claude "corrí ${sello}".`
+      : `Listo (${sello}), pero no se pudo guardar el archivo. Copia lo de arriba y pégaselo a Claude.`;
   } catch (e) {
     $listo.style.display = 'block';
     $listo.textContent = 'Error: ' + (e && e.message ? e.message : String(e));

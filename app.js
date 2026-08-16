@@ -164,6 +164,14 @@ function elegirUnidad(u, boton) {
         sel.disabled = true;
     } else {
         sel.disabled = false;
+        // Un <select> preselecciona su primera <option>, asi que sin este renglon vacio la
+        // guarda de btnEnviar no puede bloquear NUNCA por falta de etiqueta: el lote saldria
+        // rotulado con la primera del catalogo sin que nadie la eligiera. La guarda existiria,
+        // se leeria bien, y no protegeria nada (obs. 387).
+        const vacia = document.createElement('option');
+        vacia.value = '';
+        vacia.textContent = '— elige —';
+        sel.appendChild(vacia);
         for (const op of estado.opciones) {
             const o = document.createElement('option');
             o.value = op.etiqueta;
