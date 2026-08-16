@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paso 0 — MINSA Captura</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 46rem;
+         margin: 0 auto; padding: 1.5rem; line-height: 1.5; }
+  h1 { font-size: 1.4rem; margin-bottom: .25rem; }
+  .sub { opacity: .7; margin-top: 0; font-size: .95rem; }
+  button { font-size: 1rem; padding: .6rem 1.1rem; border-radius: .4rem; cursor: pointer;
+           border: 1px solid currentColor; background: transparent; color: inherit; }
+  button:disabled { opacity: .45; cursor: default; }
+  #quien { margin: 1rem 0; font-size: .95rem; }
+  table { border-collapse: collapse; width: 100%; margin-top: 1rem; font-size: .92rem; }
+  th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid rgba(128,128,128,.35);
+           vertical-align: top; }
+  th { font-weight: 600; }
+  .ok   { color: #17803d; font-weight: 600; }
+  .mal  { color: #b3261e; font-weight: 600; }
+  .esp  { opacity: .6; }
+  .det  { font-size: .82rem; opacity: .75; font-family: ui-monospace, Consolas, monospace;
+          word-break: break-word; }
+  #resumen { margin-top: 1.25rem; padding: .8rem 1rem; border-radius: .4rem;
+             border: 1px solid rgba(128,128,128,.4); display: none; }
+  #log { margin-top: 1rem; font-family: ui-monospace, Consolas, monospace; font-size: .8rem;
+         white-space: pre-wrap; opacity: .75; max-height: 16rem; overflow: auto; }
+</style>
+</head>
+<body>
+
+<h1>Paso 0 — ¿funciona el descubrimiento de permisos?</h1>
+<p class="sub">Inicia sesión y prueba si tu cuenta puede escribir en el buzón de cada unidad.
+Esta página <strong>no sube ni modifica nada</strong>: sólo lee.</p>
+
+<button id="btn">Iniciar sesión y probar</button>
+<div id="quien"></div>
+
+<table id="tabla" hidden>
+  <thead><tr><th>Unidad</th><th>Resultado</th><th>Detalle</th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<div id="resumen"></div>
+<div id="log"></div>
+
+<script src="./vendor/msal-browser.min.js"></script>
+<script type="module">
+import { CONFIG } from './config.js';
+
+const $btn = document.getElementById('btn');
+const $quien = document.getElementById('quien');
+const $tabla = document.getElementById('tabla');
+const $tbody = $tabla.querySelector('tbody');
+const $resumen = document.getElementById('resumen');
+const $log = document.getElementById('log');
+
+function log(msg) { $log.textContent += msg + '\n'; }
+
+// Nunca innerHTML con datos que no controlamos (hallazgo A3 de la auditoria).
+function celda(fila, texto, clase) {
+  const td = document.createElement('td');
+  td.textContent = texto;
+  if (clase) td.className = clase;
+  fila.appendChild(td);
+  return td;
+}
+
+// OJO: la variable NO se puede llamar `msal` — ese es el objeto global que expone el bundle
+// UMD, y declarar `const msal` aqui lo tapa y truena por zona muerta temporal.
+const pca = new msal.PublicClientApplication({
+  auth: {
+    clientId: CONFIG.clientId,
+    authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`,
+    // La raiz, no la ruta actual: 'http://localhost:8080/' es lo registrado en Entra.
+    redirectUri: window.location.origin + '/'
+  },
+  cache: {
+    // sessionStorage, NO localStorage (hallazgo A13 de la auditoria).
+    cacheLocation: 'sessionStorage',
+    storeAuthStateInCookie: false
+  }
+});
+
+async function token() {
+  const cuentas = pca.getAllAccounts();
+  const peticion = { scopes: CONFIG.scopes, account: cuentas[0] };
+  try {
+    const r = await pca.acquireTokenSilent(peticion);
+    return r.accessToken;
+  } catch (e) {
+    const r = await pca.acquireTokenPopup({ scopes: CONFIG.scopes });
+    return r.accessToken;
+  }
+}
+
+async function graph(url, tok) {
+  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + tok } });
+  const cuerpo = await r.text();
+  let json = null;
+  try { json = JSON.parse(cuerpo); } catch (_) {}
+  return { ok: r.ok, status: r.status, json, cuerpo };
+}
+
+async function probar(unidad, tok) {
+  const fila = document.createElement('tr');
+  celda(fila, unidad.nombre);
+  const tdRes = celda(fila, 'probando…', 'esp');
+  const tdDet = celda(fila, '', 'det');
+  $tbody.appendChild(fila);
+
+  // 1) Resolver el sitio
+  const urlSitio = `${CONFIG.graph}/sites/${CONFIG.sharepointHost}:${unidad.ruta}`;
+  const sitio = await graph(urlSitio, tok);
+  if (!sitio.ok) {
+    tdRes.textContent = 'SIN ACCESO';
+    tdRes.className = 'mal';
+    tdDet.textContent = `sitio → HTTP ${sitio.status} ${sitio.json?.error?.code || ''}`;
+    log(`[${unidad.clave}] sitio ${sitio.status}: ${sitio.cuerpo.slice(0, 300)}`);
+    return false;
+  }
+  const siteId = sitio.json.id;
+  log(`[${unidad.clave}] siteId ${siteId}`);
+
+  // 2) Leer el buzon (si se puede leer, el sitio esta otorgado)
+  const urlBuzon = `${CONFIG.graph}/sites/${siteId}/drive/root:/${encodeURIComponent(CONFIG.buzon)}`;
+  const buzon = await graph(urlBuzon, tok);
+  if (!buzon.ok) {
+    tdRes.textContent = 'SITIO OK, BUZÓN NO';
+    tdRes.className = 'mal';
+    tdDet.textContent = `${CONFIG.buzon} → HTTP ${buzon.status} ${buzon.json?.error?.code || ''}`;
+    log(`[${unidad.clave}] buzon ${buzon.status}: ${buzon.cuerpo.slice(0, 300)}`);
+    return false;
+  }
+
+  tdRes.textContent = 'OK';
+  tdRes.className = 'ok';
+  tdDet.textContent = `buzón encontrado (${buzon.json.folder?.childCount ?? '?'} elementos)`;
+  return true;
+}
+
+$btn.addEventListener('click', async () => {
+  $btn.disabled = true;
+  $log.textContent = '';
+  $tbody.textContent = '';
+  $resumen.style.display = 'none';
+
+  try {
+    await pca.initialize();
+    if (pca.getAllAccounts().length === 0) {
+      await pca.loginPopup({ scopes: CONFIG.scopes });
+    }
+    const cuenta = pca.getAllAccounts()[0];
+    $quien.textContent = `Sesión iniciada como: ${cuenta.username}`;
+
+    const tok = await token();
+    $tabla.hidden = false;
+
+    let buenas = 0;
+    for (const u of CONFIG.unidades) {
+      const r = await probar(u, tok);
+      if (r) buenas++;
+    }
+
+    $resumen.style.display = 'block';
+    $resumen.textContent =
+      `${buenas} de ${CONFIG.unidades.length} unidades accesibles para ${cuenta.username}. ` +
+      (buenas === CONFIG.unidades.length
+        ? 'El descubrimiento de permisos funciona y los 5 otorgamientos están aplicados.'
+        : 'Revisa las que fallaron: o falta el otorgamiento del script, o esa persona no tiene acceso a esa biblioteca.');
+  } catch (e) {
+    $resumen.style.display = 'block';
+    $resumen.textContent = 'Error: ' + (e && e.message ? e.message : String(e));
+    log(String(e && e.stack ? e.stack : e));
+  } finally {
+    $btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

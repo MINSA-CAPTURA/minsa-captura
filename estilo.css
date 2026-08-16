@@ -1,0 +1,195 @@
+/* MINSA Captura — pensado para un celular en la planta, con guantes y a pleno sol.
+   Por eso: botones grandes, contraste alto y nada que requiera precisión con el dedo. */
+
+:root {
+    color-scheme: light dark;
+    --tinta: #16202b;
+    --papel: #ffffff;
+    --fondo: #f2f4f7;
+    --borde: #d3d9e0;
+    --suave: #5d6b7a;
+    --acento: #0f5c8c;
+    --acento-texto: #ffffff;
+    --ok: #17803d;
+    --mal: #b3261e;
+    --aviso: #8a5a00;
+    --radio: .6rem;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --tinta: #e8edf2;
+        --papel: #1b2430;
+        --fondo: #121821;
+        --borde: #33404f;
+        --suave: #9fb0c0;
+        --acento: #4da3dd;
+        --acento-texto: #0b1520;
+        --ok: #5cc98a;
+        --mal: #ff8a80;
+        --aviso: #e0b350;
+    }
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--fondo);
+    color: var(--tinta);
+    line-height: 1.45;
+    -webkit-text-size-adjust: 100%;
+}
+
+.hoja {
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: 1rem 1rem 4rem;
+}
+
+header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .2rem 0 .8rem;
+    flex-wrap: wrap;
+}
+header h1 { font-size: 1.15rem; margin: 0; letter-spacing: .01em; }
+#quien { font-size: .8rem; color: var(--suave); }
+
+.tarjeta {
+    background: var(--papel);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 1rem;
+    margin-bottom: .9rem;
+}
+
+h2 {
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--suave);
+    margin: 0 0 .55rem;
+    font-weight: 600;
+}
+
+button, .boton {
+    font: inherit;
+    font-weight: 600;
+    padding: .85rem 1.1rem;
+    border-radius: var(--radio);
+    border: 1px solid var(--borde);
+    background: var(--papel);
+    color: var(--tinta);
+    cursor: pointer;
+    min-height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    text-align: center;
+}
+button:disabled { opacity: .45; cursor: default; }
+
+.principal {
+    background: var(--acento);
+    color: var(--acento-texto);
+    border-color: transparent;
+    width: 100%;
+    font-size: 1.05rem;
+}
+
+/* Selector de unidad: fichas grandes, fáciles de picar. */
+.fichas { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ficha {
+    flex: 1 1 8rem;
+    padding: .9rem .6rem;
+    border: 1.5px solid var(--borde);
+    border-radius: var(--radio);
+    background: var(--papel);
+    font-weight: 600;
+}
+.ficha[aria-pressed="true"] {
+    border-color: var(--acento);
+    background: color-mix(in srgb, var(--acento) 12%, transparent);
+    color: var(--acento);
+}
+
+label { display: block; font-size: .85rem; color: var(--suave); margin-bottom: .3rem; }
+
+select, input[type="text"], textarea {
+    font: inherit;
+    width: 100%;
+    padding: .8rem .7rem;
+    border-radius: var(--radio);
+    border: 1px solid var(--borde);
+    background: var(--papel);
+    color: var(--tinta);
+    min-height: 3rem;
+}
+textarea { resize: vertical; min-height: 4.5rem; }
+
+.campo + .campo { margin-top: .8rem; }
+
+.pista { font-size: .78rem; color: var(--suave); margin: .35rem 0 0; }
+
+/* Miniaturas */
+.miniaturas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(5.2rem, 1fr));
+    gap: .5rem;
+    margin-top: .7rem;
+}
+.mini { position: relative; aspect-ratio: 1; }
+.mini img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: .45rem;
+    border: 1px solid var(--borde);
+    display: block;
+}
+.mini .num {
+    position: absolute; left: .25rem; bottom: .25rem;
+    background: rgba(0,0,0,.65); color: #fff;
+    font-size: .7rem; padding: .05rem .3rem; border-radius: .25rem;
+}
+.mini .quitar {
+    position: absolute; top: -.4rem; right: -.4rem;
+    width: 1.7rem; height: 1.7rem; min-height: 0;
+    padding: 0; border-radius: 50%;
+    background: var(--papel); border: 1px solid var(--borde);
+    font-size: 1rem; line-height: 1;
+}
+
+/* Vista previa del nombre que se va a crear */
+#previa {
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: .76rem;
+    color: var(--suave);
+    word-break: break-all;
+    background: var(--fondo);
+    border-radius: .4rem;
+    padding: .5rem .6rem;
+    margin-top: .7rem;
+}
+
+/* Estados */
+.oculto { display: none !important; }
+
+#avance { margin-top: .7rem; font-size: .9rem; }
+.barra {
+    height: .45rem; background: var(--fondo); border-radius: 1rem;
+    overflow: hidden; margin-top: .5rem; border: 1px solid var(--borde);
+}
+.barra > div { height: 100%; background: var(--acento); width: 0; transition: width .2s; }
+
+.mensaje { padding: .85rem 1rem; border-radius: var(--radio); margin-bottom: .9rem;
+           border: 1px solid var(--borde); background: var(--papel); }
+.mensaje.bien { border-color: var(--ok); color: var(--ok); }
+.mensaje.error { border-color: var(--mal); color: var(--mal); }
+.mensaje.ojo { border-color: var(--aviso); color: var(--aviso); }
+
+.pie { text-align: center; font-size: .72rem; color: var(--suave); margin-top: 1.4rem; }

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f5c8c">
+
+<!--
+  Politica de seguridad de contenido (hallazgo A3 de la auditoria).
+  Es estricta porque puede serlo: NO hay ningun script ni estilo en linea en esta pagina,
+  todo vive en archivos propios. Por eso no hace falta 'unsafe-inline', que es lo que
+  convierte una CSP en decoracion. Cualquier inyeccion futura sera un error de consola
+  en vez de codigo ejecutandose dentro de una sesion autenticada.
+-->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self';
+  style-src 'self';
+  img-src 'self' blob: data:;
+  font-src 'self';
+  connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://minsaenergy.sharepoint.com;
+  frame-src https://login.microsoftonline.com;
+  form-action 'none';
+  base-uri 'none';
+  object-src 'none'">
+
+<title>MINSA Captura</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./iconos/icono-192.png">
+<link rel="apple-touch-icon" href="./iconos/icono-192.png">
+<link rel="stylesheet" href="./estilo.css">
+</head>
+<body>
+<div class="hoja">
+
+  <header>
+    <h1>MINSA Captura</h1>
+    <span id="quien"></span>
+  </header>
+
+  <div id="avisos"></div>
+
+  <!-- Entrar -->
+  <section id="pantallaEntrar" class="tarjeta">
+    <h2>Para empezar</h2>
+    <p class="pista" id="textoEntrar">
+      Entra con tu cuenta de MINSA. Sólo vas a ver las áreas a las que ya tienes acceso.
+    </p>
+    <button id="btnEntrar" class="principal">Entrar</button>
+  </section>
+
+  <!-- Unidad -->
+  <section id="pantallaUnidad" class="tarjeta oculto">
+    <h2>¿De qué área es?</h2>
+    <div class="fichas" id="fichasUnidad"></div>
+  </section>
+
+  <!-- Captura -->
+  <section id="pantallaCaptura" class="oculto">
+
+    <div class="tarjeta">
+      <h2>Qué estás documentando</h2>
+      <div class="campo">
+        <label for="selEtiqueta">Tipo</label>
+        <select id="selEtiqueta"></select>
+      </div>
+      <div class="campo">
+        <label for="txtConcepto">¿Qué pasó? — en pocas palabras</label>
+        <textarea id="txtConcepto" maxlength="120" autocapitalize="sentences"
+                  placeholder="Ej. fuga en la bomba y estado en que llegó"></textarea>
+        <p class="pista" id="pistaConcepto"></p>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <h2 id="tituloPiezas">Fotos</h2>
+      <button id="btnCamara" class="principal">Tomar fotos</button>
+      <button id="btnGaleria" style="width:100%; margin-top:.5rem;">Elegir de la galería</button>
+      <input type="file" id="entradaCamara" accept="image/*" capture="environment" multiple hidden>
+      <input type="file" id="entradaGaleria" accept="image/*" multiple hidden>
+      <div class="miniaturas" id="miniaturas"></div>
+      <p class="pista" id="pistaPiezas"></p>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Se va a guardar como</h2>
+      <div id="previa">—</div>
+      <button id="btnEnviar" class="principal" style="margin-top:.8rem;" disabled>Enviar</button>
+      <div id="avance" class="oculto">
+        <span id="textoAvance"></span>
+        <div class="barra"><div id="barraAvance"></div></div>
+      </div>
+    </div>
+
+  </section>
+
+  <p class="pie" id="pie"></p>
+</div>
+
+<script src="./vendor/msal-browser.min.js"></script>
+<script src="./app.js" type="module"></script>
+</body>
+</html>

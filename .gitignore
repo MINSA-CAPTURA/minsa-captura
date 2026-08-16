@@ -1,0 +1,8 @@
+# Salida de las herramientas de desarrollo. Trae identificadores del tenant (siteId,
+# listId) y la estructura de carpetas de la empresa: NO debe viajar a un repo publico.
+_salida-dev.json
+
+node_modules/
+*.log
+Thumbs.db
+.DS_Store
