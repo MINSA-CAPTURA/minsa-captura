@@ -102,6 +102,20 @@ button:disabled { opacity: .45; cursor: default; }
     font-size: 1.05rem;
 }
 
+/* Antes estos dos iban como style="" en el HTML — y la CSP (style-src 'self', sin
+   'unsafe-inline') bloquea los atributos de estilo en linea, asi que no aplicaban. */
+.secundario { width: 100%; margin-top: .5rem; }
+.enviar { margin-top: .8rem; }
+
+/* Cerrar sesion: discreto pero alcanzable — es la salida del telefono prestado (A13). */
+.salir {
+    min-height: 2rem;
+    padding: .25rem .7rem;
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--suave);
+}
+
 /* Selector de unidad: fichas grandes, fáciles de picar. */
 .fichas { display: flex; flex-wrap: wrap; gap: .5rem; }
 .ficha {

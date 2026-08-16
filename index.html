@@ -18,7 +18,7 @@
   style-src 'self';
   img-src 'self' blob: data:;
   font-src 'self';
-  connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://minsaenergy.sharepoint.com;
+  connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com;
   frame-src https://login.microsoftonline.com;
   form-action 'none';
   base-uri 'none';
@@ -36,6 +36,7 @@
   <header>
     <h1>MINSA Captura</h1>
     <span id="quien"></span>
+    <button id="btnSalir" class="salir oculto" type="button">Salir</button>
   </header>
 
   <div id="avisos"></div>
@@ -75,7 +76,7 @@
     <div class="tarjeta">
       <h2 id="tituloPiezas">Fotos</h2>
       <button id="btnCamara" class="principal">Tomar fotos</button>
-      <button id="btnGaleria" style="width:100%; margin-top:.5rem;">Elegir de la galería</button>
+      <button id="btnGaleria" class="secundario">Elegir de la galería</button>
       <input type="file" id="entradaCamara" accept="image/*" capture="environment" multiple hidden>
       <input type="file" id="entradaGaleria" accept="image/*" multiple hidden>
       <div class="miniaturas" id="miniaturas"></div>
@@ -85,7 +86,7 @@
     <div class="tarjeta">
       <h2>Se va a guardar como</h2>
       <div id="previa">—</div>
-      <button id="btnEnviar" class="principal" style="margin-top:.8rem;" disabled>Enviar</button>
+      <button id="btnEnviar" class="principal enviar" disabled>Enviar</button>
       <div id="avance" class="oculto">
         <span id="textoAvance"></span>
         <div class="barra"><div id="barraAvance"></div></div>

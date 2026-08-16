@@ -1,12 +1,9 @@
-Esta carpeta va a contener el codigo de la app (index.html, app.js, nombre.js, pdf.js,
-config.js, vendor/, manifest.json, sw.js, test/) y sera un REPO PUBLICO propio publicado
-con GitHub Pages.
+Esta carpeta es el codigo de la app y sera un REPO PUBLICO propio publicado con
+GitHub Pages.
 
 Esta ignorada por el .gitignore del repo padre a proposito: su contenido se publica en
 internet y no debe mezclarse con el respaldo privado del cerebro.
 
-NO mover aqui nada de ../docs/ — esos documentos traen rutas de bibliotecas y decisiones
-de negocio que no van a un repo publico.
-
-Vacia por ahora. El codigo arranca cuando Carlos decida los hallazgos A1 y A6 de
-../docs/auditoria-seguridad.md
+NO mover aqui nada de ../docs/ ni de ../herramientas-dev/ — los documentos traen rutas
+de bibliotecas y decisiones de negocio, y las herramientas hacen login real sin CSP.
+Nada de eso va a un repo publico.

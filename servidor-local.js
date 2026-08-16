@@ -1,12 +1,17 @@
 // Servidor estatico minimo para probar la app en http://localhost:8080/
 //
-//   node servidor-local.js            -> sirve index.html en la raiz
-//   node servidor-local.js paso0.html -> sirve paso0.html en la raiz
+//   node servidor-local.js                                    -> sirve index.html en la raiz
+//   node servidor-local.js ../herramientas-dev/paso0.html     -> sirve esa pagina en la raiz
 //
 // Sirve el archivo indicado EN LA RAIZ a proposito: la URL de redireccion registrada en
 // Entra es exactamente 'http://localhost:8080/'. Si la pagina se abriera como
 // '/paso0.html', MSAL mandaria esa como redirectUri y Entra la rechazaria por no estar
 // registrada. Este es el tipo de detalle que cuesta media hora de depuracion.
+//
+// Las herramientas de desarrollo (paso0, explorar, revisar-catalogo) viven FUERA de esta
+// carpeta —en ../herramientas-dev/— porque hacen login real y no tienen CSP: no deben
+// publicarse con la app. Solo el archivo indicado por argumento puede venir de fuera; todo
+// lo demas (config.js, vendor/) se sigue sirviendo unicamente desde esta carpeta.
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -18,6 +23,9 @@ import { fileURLToPath } from 'node:url';
 const RAIZ = import.meta.dirname || path.dirname(fileURLToPath(import.meta.url));
 const PUERTO = 8080;
 const INDICE = process.argv[2] || 'index.html';
+
+// El unico archivo que puede vivir fuera de RAIZ: el que se pidio por argumento.
+const ARCHIVO_INDICE = path.resolve(RAIZ, INDICE);
 
 const TIPOS = {
     '.html': 'text/html; charset=utf-8',
@@ -46,14 +54,20 @@ const servidor = http.createServer((req, res) => {
         return;
     }
 
-    let rel = decodeURIComponent(req.url.split('?')[0]);
-    if (rel === '/') rel = '/' + INDICE;
+    const rel = decodeURIComponent(req.url.split('?')[0]);
 
-    // Sin salto de ruta: se resuelve y se exige que quede dentro de RAIZ.
-    const destino = path.resolve(RAIZ, '.' + rel);
-    if (!destino.startsWith(RAIZ)) {
-        res.writeHead(403).end('403');
-        return;
+    let destino;
+    if (rel === '/') {
+        destino = ARCHIVO_INDICE;
+    } else {
+        // Sin salto de ruta: se resuelve y se exige que quede dentro de RAIZ. El separador
+        // al final importa: sin el, un directorio HERMANO cuyo nombre empiece igual
+        // ('app-x' junto a 'app') pasaria la comprobacion por puro prefijo.
+        destino = path.resolve(RAIZ, '.' + rel);
+        if (!destino.startsWith(RAIZ + path.sep)) {
+            res.writeHead(403).end('403');
+            return;
+        }
     }
 
     fs.readFile(destino, (err, datos) => {

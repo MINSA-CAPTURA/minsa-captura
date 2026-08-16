@@ -4,6 +4,24 @@
 // Un XSS aqui no desfigura la pagina, se lleva el token de sesion. Todo texto entra con
 // textContent y todo nodo se crea con createElement.
 
+// Contra el clickjacking: la defensa correcta es la cabecera frame-ancestors, pero GitHub
+// Pages no permite cabeceras propias y por <meta> esa directiva no existe. Esto es lo que
+// queda: si un sitio AJENO enmarca la pagina para robarle clics a un operador autenticado,
+// la pagina se sale del marco — y si el marco lo impide (sandbox), al menos no arranca.
+//
+// OJO: el marco PROPIO es legitimo y no se toca. MSAL renueva el token en silencio
+// cargando esta misma pagina en un iframe oculto de la misma origin; reventarle ese marco
+// romperia acquireTokenSilent. La prueba que distingue: leer top.location solo se permite
+// entre misma origin — si truena, el de afuera es ajeno.
+if (window.self !== window.top) {
+    let marcoAjeno = false;
+    try { void window.top.location.href; } catch (_) { marcoAjeno = true; }
+    if (marcoAjeno) {
+        window.top.location = window.self.location;
+        throw new Error('esta página no se sirve dentro de un marco ajeno');
+    }
+}
+
 import { CONFIG } from './config.js';
 import { slug, fechaMexico, nombreCarpeta, nombreArchivo, limpiarEtiqueta } from './nombre.js';
 import { normalizarCatalogo, opcionesDe } from './catalogo.js';
@@ -13,7 +31,7 @@ import { jpegsAPdf } from './pdf.js';
 import { crearCliente } from './subir.js';
 import { NOMBRE_MANIFIESTO, construirManifiesto, bytesDelManifiesto } from './manifiesto.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 
 const $ = id => document.getElementById(id);
 
@@ -33,7 +51,11 @@ const pca = new msal.PublicClientApplication({
     auth: {
         clientId: CONFIG.clientId,
         authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`,
-        redirectUri: window.location.origin + '/'
+        // La CARPETA de la app, no la raiz del dominio. En localhost las dos coinciden,
+        // pero en GitHub Pages la app vive en /minsa-captura/ y lo registrado en Entra es
+        // exactamente esa URL con su barra final: origin + '/' mandaria la raiz del
+        // dominio y Entra la rechazaria (AADSTS50011).
+        redirectUri: new URL('./', window.location.href).href
     },
     cache: {
         // sessionStorage, NUNCA localStorage (hallazgo A13): el escenario mas probable
@@ -79,6 +101,7 @@ async function entrar() {
         estado.token = await token();
         estado.cliente = crearCliente(CONFIG.graph, estado.token);
         $('quien').textContent = estado.cuenta.username;
+        $('btnSalir').classList.remove('oculto');
 
         $('textoEntrar').textContent = 'Buscando a qué áreas tienes acceso…';
         await descubrirUnidades();
@@ -452,7 +475,21 @@ function reiniciarLote() {
 
 // ---------------------------------------------------------------- arranque
 
+// Cerrar sesion de verdad (hallazgo A13: el telefono prestado). No basta con limpiar el
+// sessionStorage de esta pagina: la sesion de Microsoft del navegador seguiria viva y el
+// siguiente "Entrar" volveria a entrar sin pedir nada. logoutRedirect cierra las dos.
+async function salir() {
+    try {
+        await pca.logoutRedirect({ account: estado.cuenta });
+    } catch (_) {
+        // Sin red no se puede cerrar en el servidor; al menos se limpia lo local.
+        sessionStorage.clear();
+        window.location.reload();
+    }
+}
+
 $('btnEntrar').addEventListener('click', entrar);
+$('btnSalir').addEventListener('click', salir);
 $('btnCamara').addEventListener('click', () => $('entradaCamara').click());
 $('btnGaleria').addEventListener('click', () => $('entradaGaleria').click());
 $('entradaCamara').addEventListener('change', e => { agregarArchivos(e.target.files); e.target.value = ''; });

@@ -17,8 +17,6 @@ privado del holding — aquí sólo va el código, porque este repo es público.
 | `imagen.js` | Compresión de las fotos antes de subirlas | ✅ 10 pruebas |
 | `subir.js` | Graph: sitios, carpetas, piezas y reintentos | ✅ 12 pruebas |
 | `config.js` | `client_id`, `tenant_id` y los 5 sitios. Público por diseño, **sin secretos** | ✅ |
-| `paso0.html` | Prueba del descubrimiento de permisos. Sólo lee | ✅ superada |
-| `explorar.html` | Herramienta de desarrollo: lista las carpetas reales de las 5 bibliotecas | ✅ |
 | `vendor/msal-browser.min.js` | MSAL, vendorizado (ver abajo) | ✅ |
 | `servidor-local.js` | Servidor estático para pruebas en `localhost:8080` | ✅ |
 | `index.html` · `app.js` | **La app** | ✅ escrita |
@@ -46,10 +44,16 @@ aserciones pasen no prueba que un lector real acepte el archivo:
 python -c "import fitz; d=fitz.open(r'$TEMP\minsa-captura-muestra.pdf'); print(d.page_count)"
 ```
 
+Las herramientas de desarrollo (`paso0.html`, `explorar.html`, `revisar-catalogo.html`)
+**no viven en este repo**: hacen login real y no llevan CSP, así que no deben publicarse
+con la app. Se quedan en una carpeta hermana privada y se sirven con el mismo
+`servidor-local.js` cuando hacen falta.
+
 ## Cómo probar en el navegador
 
 ```bash
-node servidor-local.js paso0.html      # o explorar.html
+node servidor-local.js                                   # la app
+node servidor-local.js ../herramientas-dev/paso0.html    # una herramienta de desarrollo
 ```
 
 Y abrir **`http://localhost:8080/`** — la raíz, no `/paso0.html`.
@@ -88,6 +92,11 @@ Salen de la auditoría de seguridad del diseño. No son preferencias de estilo:
 - **El service worker no toca `graph.microsoft.com` ni `login.microsoftonline.com`** — sólo cachea
   el armazón estático.
 - **Nunca un client secret en este repo.** La app usa PKCE; un secreto aquí no protegería nada.
+- **Las herramientas de desarrollo no se publican.** Hacen login real y no llevan CSP; viven fuera
+  de este repo a propósito.
+- **El framebuster de `app.js` distingue el marco propio del ajeno.** El iframe oculto con el que
+  MSAL renueva el token es de la misma origin y es legítimo; no "simplificar" la comprobación a un
+  `self !== top` a secas, porque eso rompe `acquireTokenSilent`.
 
 ## Una trampa ya pagada
 
