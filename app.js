@@ -10,6 +10,7 @@ import { normalizarCatalogo, opcionesDe } from './catalogo.js';
 import { comprimir } from './imagen.js';
 import { jpegsAPdf } from './pdf.js';
 import { crearCliente } from './subir.js';
+import { NOMBRE_MANIFIESTO, construirManifiesto, bytesDelManifiesto } from './manifiesto.js';
 
 const VERSION = '0.1.0';
 
@@ -304,7 +305,8 @@ async function enviar() {
     const unidad = estado.unidad;
     const esDoc = op.tipo === 'documento';
 
-    const total = esDoc ? 1 : estado.piezas.length;
+    // +1 por la carpeta y +1 por el manifiesto del final.
+    const total = (esDoc ? 1 : estado.piezas.length) + 1;
     let hechas = 0;
     const paso = t => { $('textoAvance').textContent = t; };
     const barra = () => { $('barraAvance').style.width = `${Math.round(hechas / (total + 1) * 100)}%`; };
@@ -315,34 +317,55 @@ async function enviar() {
         estado.cliente = crearCliente(CONFIG.graph, estado.token);
 
         paso('Creando la carpeta…');
-        const rutaPadre = [CONFIG.buzon, op.destino].filter(Boolean).join('/');
         // La carpeta del lote va SIEMPRE en el buzón, no en el destino final: el destino
-        // lo aplica la skill de archivar al acomodarla. La app apunta, no archiva.
+        // lo aplica la skill de archivar al acomodarla. La app apunta, no archiva — pero
+        // deja apuntado a dónde, en el manifiesto que se sube al cerrar.
         const { nombreReal } = await estado.cliente.crearCarpeta(
             unidad.siteId, CONFIG.buzon, nombreCarpeta(fecha, op.etiqueta, s), paso);
         hechas++; barra();
 
         const rutaLote = `${CONFIG.buzon}/${nombreReal}`;
+        const subidos = [];
 
         if (esDoc) {
             paso('Armando el PDF…');
             const pdf = jpegsAPdf(estado.piezas.map(p => p.bytes));
+            const nombre = nombreArchivo(fecha, unidad.clave, 'documento', s);
             paso('Subiendo el documento…');
             await estado.cliente.subirPieza(
-                unidad.siteId, rutaLote,
-                nombreArchivo(fecha, unidad.clave, 'documento', s),
-                pdf, 'application/pdf', paso);
+                unidad.siteId, rutaLote, nombre, pdf, 'application/pdf', paso);
+            subidos.push(nombre);
             hechas++; barra();
         } else {
             for (let i = 0; i < estado.piezas.length; i++) {
+                const nombre = nombreArchivo(fecha, unidad.clave, 'foto', s, i + 1);
                 paso(`Subiendo foto ${i + 1} de ${estado.piezas.length}…`);
                 await estado.cliente.subirPieza(
-                    unidad.siteId, rutaLote,
-                    nombreArchivo(fecha, unidad.clave, 'foto', s, i + 1),
+                    unidad.siteId, rutaLote, nombre,
                     estado.piezas[i].bytes, 'image/jpeg', paso);
+                subidos.push(nombre);
                 hechas++; barra();
             }
         }
+
+        // AL FINAL y no antes: que el manifiesto exista es la prueba de que el lote subió
+        // completo. Si la subida se corta a la mitad, la carpeta queda sin él y la skill de
+        // archivar la reporta como incompleta en vez de darla por buena.
+        paso('Cerrando el lote…');
+        const manifiesto = construirManifiesto({
+            appVersion: VERSION,
+            unidad: unidad.clave,
+            etiqueta: op.etiqueta,
+            destino: op.destino,
+            tipo: op.tipo,
+            fecha,
+            concepto: $('txtConcepto').value.trim(),
+            archivos: subidos
+        });
+        await estado.cliente.subirPieza(
+            unidad.siteId, rutaLote, NOMBRE_MANIFIESTO,
+            bytesDelManifiesto(manifiesto), 'application/json', paso);
+        hechas++; barra();
 
         $('barraAvance').style.width = '100%';
         paso('Listo.');
@@ -351,8 +374,9 @@ async function enviar() {
         reiniciarLote();
     } catch (e) {
         avisar('No se pudo terminar: ' + (e && e.message ? e.message : e), 'error');
-        avisar('Lo que ya subió se quedó en la carpeta. Puedes volver a intentar; ' +
-               'si insiste, avísale a Carlos.', 'ojo');
+        avisar('Lo que ya subió se quedó en la carpeta, pero el lote quedó SIN CERRAR: ' +
+               'nadie lo va a archivar así. Vuelve a intentar; si insiste, avísale a Carlos.',
+               'ojo');
         $('btnEnviar').disabled = false;
     }
 }

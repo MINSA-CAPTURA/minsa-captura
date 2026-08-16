@@ -6,20 +6,28 @@ privado del holding — aquí sólo va el código, porque este repo es público.
 
 ## Estado
 
-**Paso 0 superado** (5 de 5 unidades accesibles). Están hechas y probadas las dos piezas puras;
-falta la pantalla.
+**Paso 0 superado** (5 de 5 unidades accesibles) y la app escrita. Falta probarla en campo.
 
 | Archivo | Qué es | Estado |
 |---|---|---|
 | `nombre.js` | Slug y armado de nombres de carpeta y archivo. **El contrato con las skills de archivar** | ✅ 24 pruebas |
+| `manifiesto.js` | El `_lote.json` que cierra cada lote. **El otro contrato con las skills**: dice a dónde va | ✅ 30 pruebas |
 | `pdf.js` | Une varios JPEG en un PDF de varias páginas, sin librerías | ✅ 13 pruebas |
+| `catalogo.js` | Lee y valida los renglones de `CAT_Evidencia_MINSA` | ✅ 15 pruebas |
+| `imagen.js` | Compresión de las fotos antes de subirlas | ✅ 10 pruebas |
+| `subir.js` | Graph: sitios, carpetas, piezas y reintentos | ✅ 12 pruebas |
 | `config.js` | `client_id`, `tenant_id` y los 5 sitios. Público por diseño, **sin secretos** | ✅ |
 | `paso0.html` | Prueba del descubrimiento de permisos. Sólo lee | ✅ superada |
 | `explorar.html` | Herramienta de desarrollo: lista las carpetas reales de las 5 bibliotecas | ✅ |
 | `vendor/msal-browser.min.js` | MSAL, vendorizado (ver abajo) | ✅ |
 | `servidor-local.js` | Servidor estático para pruebas en `localhost:8080` | ✅ |
-| `index.html` · `app.js` | **La app** | ⏳ por escribir |
-| `manifest.json` · `sw.js` · iconos | Lo que la hace instalable | ⏳ por escribir |
+| `index.html` · `app.js` | **La app** | ✅ escrita |
+| `manifest.json` · `sw.js` · iconos | Lo que la hace instalable | ✅ 10 pruebas (`sw.js`) |
+
+**Los dos contratos con las skills de archivar viven en `nombre.js` y `manifiesto.js`.** El primero
+decide cómo se llaman las cosas; el segundo, a dónde van. Romper cualquiera de los dos manda las
+fotos al buzón a quedarse ahí, **sin ningún error visible** — por eso los dos tienen pruebas que
+fijan el formato, y no son de higiene.
 
 ## Pruebas
 
