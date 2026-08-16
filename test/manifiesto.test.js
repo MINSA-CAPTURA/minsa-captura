@@ -18,7 +18,7 @@ const ok = (cond, que) => { assert.ok(cond, que); n++; };
 const eq = (a, b, que) => { assert.deepEqual(a, b, que); n++; };
 
 const base = () => ({
-    appVersion: '0.1.0',
+    appVersion: '0.2.0',
     unidad: 'CALYTEK',
     etiqueta: 'Eddy Pump',
     destino: '02_Planta/Equipos/Eddy Pump',
@@ -107,6 +107,55 @@ const base = () => ({
     eq(validarManifiesto({ ...m, fecha: '15/08/2026' }).ok, false, 'una fecha que no es ISO no pasa');
     eq(validarManifiesto({ ...m, archivos: [] }).ok, false,
        'un lote sin archivos no pasa: la carpeta vacía no se archiva');
+}
+
+// ---------------------------------------------------------------- páginas (B10)
+
+{
+    // El caso que motivó el campo: 5 hojas fotografiadas salen como UN solo PDF, y sin este
+    // número la cuenta de hojas se pierde para siempre.
+    const m = construirManifiesto({
+        ...base(), tipo: 'documento', paginas: 5,
+        archivos: ['2026-08-16_RABASA_Documento_alcance-de-servicios.pdf']
+    });
+    eq(m.paginas, 5, 'un documento declara sus hojas, no su único archivo');
+    eq(m.archivos.length, 1, 'y sube un solo PDF');
+    eq(validarManifiesto(m).ok, true, 'un documento de 5 hojas en 1 PDF es válido');
+}
+
+{
+    const m = construirManifiesto(base());   // tipo foto, 1 archivo, sin `paginas`
+    eq(m.paginas, 1, 'sin declararlo, se toma de la lista de archivos');
+}
+
+{
+    // Lo que se garantiza es la SALIDA, no la entrada: del otro lado lo lee Python, y ahí
+    // `"3" != 3` sin avisar. Un número que llegue como texto se convierte; lo que no es un
+    // entero cae al respaldo en vez de escribir basura en el archivo.
+    ok(typeof construirManifiesto({ ...base(), paginas: '3' }).paginas === 'number',
+       'el campo siempre sale como número, nunca como texto');
+    eq(construirManifiesto({ ...base(), paginas: '3' }).paginas, 3, 'un texto numérico se convierte');
+    eq(construirManifiesto({ ...base(), paginas: 'muchas' }).paginas, 1, 'lo que no es número cae al respaldo');
+    eq(construirManifiesto({ ...base(), paginas: -2 }).paginas, 1, 'un negativo cae al respaldo');
+    eq(construirManifiesto({ ...base(), paginas: null }).paginas, 1, 'null cae al respaldo');
+}
+
+{
+    const m = construirManifiesto(base());
+    eq(validarManifiesto({ ...m, paginas: undefined }).ok, false, 'sin páginas no pasa');
+    eq(validarManifiesto({ ...m, paginas: 0 }).ok, false, 'cero páginas no pasa');
+    eq(validarManifiesto({ ...m, paginas: 1.5 }).ok, false, 'una fracción de página no pasa');
+}
+
+{
+    // Un lote de fotos sí tiene que cuadrar: cada foto es un archivo.
+    const m = construirManifiesto({
+        ...base(),
+        archivos: ['a-01.jpg', 'a-02.jpg']
+    });
+    eq(m.paginas, 2, 'dos fotos, dos páginas');
+    eq(validarManifiesto({ ...m, paginas: 3 }).ok, false,
+       'en un lote de fotos, declarar más de las que se suben no pasa');
 }
 
 // ------------------------------------------------- el contrato con el otro lado

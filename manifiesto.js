@@ -41,10 +41,12 @@ export const CONTRATO = 1;
  * @param {string} d.fecha       YYYY-MM-DD (hora de Mexico)
  * @param {string} d.concepto    lo que escribio el operador, SIN convertir a slug
  * @param {string[]} d.archivos  nombres de las piezas que se subieron, en orden
+ * @param {number} [d.paginas]   cuantas FOTOS de origen entraron al lote (ver abajo)
  * @param {string} [d.subido]    ISO 8601; por omision, ahora
  * @returns {object}
  */
 export function construirManifiesto(d) {
+    const archivos = Array.isArray(d.archivos) ? d.archivos.map(texto) : [];
     return {
         app: 'minsa-captura',
         contrato: CONTRATO,
@@ -55,7 +57,15 @@ export function construirManifiesto(d) {
         tipo: texto(d.tipo),
         fecha: texto(d.fecha),
         concepto: texto(d.concepto),
-        archivos: Array.isArray(d.archivos) ? d.archivos.map(texto) : [],
+        archivos,
+        // CUANTAS FOTOS SE TOMARON, que para un documento NO es `archivos.length`: ahi se sube
+        // un solo PDF y la cuenta de hojas se perdia entera. Sin este numero, un PDF que se
+        // arma a medias —una foto que no se pudo leer, un navegador que se quedo sin memoria—
+        // llega completo a la vista de cualquiera: un PDF de 3 hojas es un PDF valido de 3
+        // hojas, y nada dice que salieron 5 del celular. Con el numero, el otro lado abre el
+        // PDF, cuenta y compara. Es la unica cifra del lote que no se puede reconstruir
+        // despues (2026-08-16).
+        paginas: entero(d.paginas, archivos.length),
         subido: d.subido || new Date().toISOString()
     };
 }
@@ -92,9 +102,30 @@ export function validarManifiesto(m) {
     if (!Array.isArray(m.archivos) || m.archivos.length === 0) {
         return { ok: false, motivo: 'sin lista de archivos' };
     }
+    // Aqui la app es MAS estricta que el script del otro lado, a proposito y en la direccion
+    // segura: alla `paginas` es opcional, porque hay lotes anteriores a este campo que siguen
+    // siendo validos; aqui es obligatorio, porque un manifiesto que escribe ESTA version
+    // siempre lo trae y su ausencia solo puede ser un error de programacion.
+    if (!Number.isInteger(m.paginas) || m.paginas < 1) {
+        const visto = m.paginas === undefined ? '(ausente)' : JSON.stringify(m.paginas);
+        return { ok: false, motivo: `paginas ${visto}: debe ser un entero >= 1` };
+    }
+    if (m.tipo === 'foto' && m.paginas !== m.archivos.length) {
+        return { ok: false, motivo: `declara ${m.paginas} foto(s) y sube ${m.archivos.length}` };
+    }
     return { ok: true };
 }
 
 function texto(v) {
     return v === null || v === undefined ? '' : String(v).trim();
+}
+
+/** Un entero >= 1, o el respaldo. Nunca `NaN` ni una cadena: del otro lado lo lee Python y
+ *  comparar un `"5"` contra un `5` da distinto sin avisar. `null`, `''` y los booleanos se
+ *  excluyen a mano porque `Number()` los convierte en 0 o 1 sin quejarse — que es como un
+ *  campo ausente se vuelve un dato que parece bueno. */
+function entero(v, respaldo) {
+    if (v === null || v === undefined || v === '' || typeof v === 'boolean') return respaldo;
+    const n = Number(v);
+    return Number.isInteger(n) && n >= 1 ? n : respaldo;
 }

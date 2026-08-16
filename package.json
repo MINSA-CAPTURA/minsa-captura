@@ -1,11 +1,11 @@
 {
   "name": "minsa-captura",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "PWA de captura de fotos y documentos a los buzones de MINSA ENERGY",
   "scripts": {
-    "test": "node test/nombre.test.js && node test/pdf.test.js && node test/catalogo.test.js && node test/imagen.test.js && node test/subir.test.js && node test/manifiesto.test.js && node test/sw.test.js",
+    "test": "node test/nombre.test.js && node test/pdf.test.js && node test/catalogo.test.js && node test/imagen.test.js && node test/orden.test.js && node test/subir.test.js && node test/manifiesto.test.js && node test/sw.test.js",
     "serve": "node servidor-local.js index.html"
   }
 }

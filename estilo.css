@@ -143,7 +143,7 @@ textarea { resize: vertical; min-height: 4.5rem; }
     gap: .5rem;
     margin-top: .7rem;
 }
-.mini { position: relative; aspect-ratio: 1; }
+.mini .lienzo { position: relative; aspect-ratio: 1; }
 .mini img {
     width: 100%; height: 100%;
     object-fit: cover;
@@ -163,6 +163,17 @@ textarea { resize: vertical; min-height: 4.5rem; }
     background: var(--papel); border: 1px solid var(--borde);
     font-size: 1rem; line-height: 1;
 }
+/* Reordenar (B10). Botones y no arrastrar: el arrastre nativo del navegador no existe con
+   el dedo, y las librerias que lo emulan son justo la dependencia que la auditoria (A8)
+   pide no meter en una pagina que sostiene un token de sesion. */
+.mini .orden { display: flex; gap: .25rem; margin-top: .25rem; }
+.mini .orden button {
+    flex: 1; min-height: 1.9rem;
+    padding: 0; font-size: .8rem; line-height: 1;
+    background: var(--papel); border: 1px solid var(--borde);
+    border-radius: .3rem;
+}
+.mini .orden button[disabled] { opacity: .3; }
 
 /* Vista previa del nombre que se va a crear */
 #previa {

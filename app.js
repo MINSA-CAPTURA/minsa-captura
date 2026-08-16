@@ -8,11 +8,12 @@ import { CONFIG } from './config.js';
 import { slug, fechaMexico, nombreCarpeta, nombreArchivo, limpiarEtiqueta } from './nombre.js';
 import { normalizarCatalogo, opcionesDe } from './catalogo.js';
 import { comprimir } from './imagen.js';
+import { mover, puedeMover } from './orden.js';
 import { jpegsAPdf } from './pdf.js';
 import { crearCliente } from './subir.js';
 import { NOMBRE_MANIFIESTO, construirManifiesto, bytesDelManifiesto } from './manifiesto.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 
 const $ = id => document.getElementById(id);
 
@@ -208,48 +209,103 @@ async function agregarArchivos(lista) {
         }
     }
     trabajando.remove();
-    pintarMiniaturas();
     alCambiar();
 }
 
-function pintarMiniaturas() {
+// Un solo repintado para todo lo que depende del estado: `alCambiar` es la unica puerta y
+// llama a esto. Antes cada sitio que tocaba las piezas tenia que acordarse de llamar a las
+// dos, y el desplegable —que cambia si la numeracion dice "Foto" o "Hoja"— solo llamaba a una.
+//
+// PERO `alCambiar` corre en cada TECLA del concepto, y volver a crear los <img> en cada tecla
+// parpadea con 10 fotos en un celular. La firma es lo que hace que la unica-puerta no cueste:
+// si las piezas y su orden no cambiaron, no se repinta.
+let firmaPintada = null;
+
+function pintarMiniaturas(esDoc) {
+    const firma = estado.piezas.map(p => p.urlPrevia).join('|') + '#' + (esDoc ? 'doc' : 'foto');
+    if (firma === firmaPintada) return;
+    firmaPintada = firma;
+
     const cont = $('miniaturas');
     cont.textContent = '';
+    const total = estado.piezas.length;
+    const cosa = esDoc ? 'hoja' : 'foto';
+
     estado.piezas.forEach((p, i) => {
         const caja = document.createElement('div');
         caja.className = 'mini';
 
+        const marco = document.createElement('div');
+        marco.className = 'lienzo';
+
         const img = document.createElement('img');
         img.src = p.urlPrevia;
-        img.alt = `Foto ${i + 1}`;
-        caja.appendChild(img);
+        img.alt = `${esDoc ? 'Hoja' : 'Foto'} ${i + 1} de ${total}`;
+        marco.appendChild(img);
 
         const num = document.createElement('span');
         num.className = 'num';
-        num.textContent = String(i + 1).padStart(2, '0');
-        caja.appendChild(num);
+        // Para un documento el numero NO es decorativo: es la hoja que va a quedar en esa
+        // posicion del PDF. Se rotula para que el operador pueda cotejarlo contra el papel.
+        num.textContent = esDoc
+            ? `Hoja ${String(i + 1).padStart(2, '0')}`
+            : String(i + 1).padStart(2, '0');
+        marco.appendChild(num);
 
         const quitar = document.createElement('button');
         quitar.className = 'quitar';
         quitar.type = 'button';
         quitar.textContent = '×';
         quitar.title = 'Quitar';
-        quitar.setAttribute('aria-label', `Quitar la foto ${i + 1}`);
+        quitar.setAttribute('aria-label', `Quitar la ${cosa} ${i + 1}`);
         quitar.addEventListener('click', () => {
             URL.revokeObjectURL(p.urlPrevia);
             estado.piezas.splice(i, 1);
-            pintarMiniaturas();
             alCambiar();
         });
-        caja.appendChild(quitar);
+        marco.appendChild(quitar);
+        caja.appendChild(marco);
+
+        // Los controles de orden solo aparecen si hay a donde mover. Con una sola pieza serian
+        // dos botones muertos ocupando el dedo.
+        if (total > 1) {
+            const fila = document.createElement('div');
+            fila.className = 'orden';
+            for (const [delta, glifo, dice] of [[-1, '◀', 'antes'], [1, '▶', 'después']]) {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = glifo;
+                b.disabled = !puedeMover(estado.piezas, i, delta);
+                b.title = `Mover esta ${cosa} un lugar ${dice}`;
+                b.setAttribute('aria-label', `Mover la ${cosa} ${i + 1} un lugar ${dice}`);
+                b.addEventListener('click', () => {
+                    estado.piezas = mover(estado.piezas, i, delta);
+                    alCambiar();
+                });
+                fila.appendChild(b);
+            }
+            caja.appendChild(fila);
+        }
 
         cont.appendChild(caja);
     });
 
     const kb = estado.piezas.reduce((s, p) => s + p.bytes.length, 0) / 1024;
-    $('pistaPiezas').textContent = estado.piezas.length === 0
-        ? 'Todavía no hay fotos.'
-        : `${estado.piezas.length} foto(s) · ${kb > 1024 ? (kb / 1024).toFixed(1) + ' MB' : Math.round(kb) + ' KB'} en total`;
+    const peso = kb > 1024 ? (kb / 1024).toFixed(1) + ' MB' : Math.round(kb) + ' KB';
+    if (total === 0) {
+        $('pistaPiezas').textContent = esDoc
+            ? 'Todavía no hay hojas.'
+            : 'Todavía no hay fotos.';
+    } else if (esDoc) {
+        // El aviso existe porque el defecto NO se ve despues: un PDF desordenado es un PDF
+        // valido, y ni la app ni la skill de archivar tienen con que notarlo. La unica
+        // oportunidad de cazarlo es aqui, con el papel todavia enfrente (2026-08-16).
+        $('pistaPiezas').textContent =
+            `${total} hoja(s) · ${peso} · El PDF se arma EN ESTE ORDEN` +
+            (total > 1 ? '. Revísalo contra el documento y corrígelo con ◀ ▶ antes de enviar.' : '.');
+    } else {
+        $('pistaPiezas').textContent = `${total} foto(s) · ${peso} en total`;
+    }
 }
 
 // ---------------------------------------------------------------- previa y validación
@@ -263,6 +319,7 @@ function alCambiar() {
     const esDoc = op && op.tipo === 'documento';
     $('tituloPiezas').textContent = esDoc ? 'Páginas del documento' : 'Fotos';
     $('btnCamara').textContent = esDoc ? 'Fotografiar el documento' : 'Tomar fotos';
+    pintarMiniaturas(esDoc);
 
     const previa = $('previa');
     previa.textContent = '';
@@ -360,7 +417,10 @@ async function enviar() {
             tipo: op.tipo,
             fecha,
             concepto: $('txtConcepto').value.trim(),
-            archivos: subidos
+            archivos: subidos,
+            // Las fotos que entraron, no los archivos que salieron: para un documento son
+            // N hojas dentro de UN solo PDF, y esa cuenta no se puede reconstruir despues.
+            paginas: estado.piezas.length
         });
         await estado.cliente.subirPieza(
             unidad.siteId, rutaLote, NOMBRE_MANIFIESTO,
@@ -385,7 +445,6 @@ function reiniciarLote() {
     for (const p of estado.piezas) URL.revokeObjectURL(p.urlPrevia);
     estado.piezas = [];
     $('txtConcepto').value = '';
-    pintarMiniaturas();
     alCambiar();
     $('avance').classList.add('oculto');
     $('barraAvance').style.width = '0';
