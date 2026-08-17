@@ -200,7 +200,30 @@ button:not(:disabled):active { transform: translateY(1px); }
     aspect-ratio: 724.454 / 256.393;
     margin: .4rem auto 1.4rem;
 }
-.entrada .pista { font-size: .84rem; max-width: 30ch; margin: 0 auto 1.3rem; }
+.entrada .lema {
+    font-size: .98rem;
+    font-weight: 650;
+    letter-spacing: -.005em;
+    text-wrap: balance;
+    max-width: 26ch;
+    margin: 0 auto 1.1rem;
+}
+/* El "cómo funciona" de la primera vez: mismos números que los pasos de la captura,
+   para que la promesa de aquí se reconozca allá adentro. */
+.entrada .como {
+    list-style: none;
+    text-align: left;
+    max-width: 21rem;
+    margin: 0 auto 1.3rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    font-size: .84rem;
+}
+.entrada .como li { display: flex; align-items: flex-start; gap: .55rem; }
+.entrada .como .paso { margin-right: 0; margin-top: .1rem; }
+.entrada .pista { font-size: .8rem; max-width: 32ch; margin: 0 auto 1.3rem; }
 .entrada .principal { max-width: 15rem; margin: 0 auto; }
 
 /* ---------------------------------------------------------------- fichas de área */

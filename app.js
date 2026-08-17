@@ -31,7 +31,7 @@ import { jpegsAPdf } from './pdf.js';
 import { crearCliente } from './subir.js';
 import { NOMBRE_MANIFIESTO, construirManifiesto, bytesDelManifiesto } from './manifiesto.js';
 
-const VERSION = '0.4.0';
+const VERSION = '0.4.1';
 
 const $ = id => document.getElementById(id);
 
