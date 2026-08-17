@@ -8,7 +8,7 @@
 // Ojo: un service worker se queda instalado. Si algún día hay que sacar uno malo, se sube
 // el número de CACHE y se borra lo viejo en 'activate' — que es justo lo que hace esto.
 
-const CACHE = 'minsa-captura-v9';
+const CACHE = 'minsa-captura-v10';
 
 const ARMAZON = [
     './',
@@ -27,7 +27,10 @@ const ARMAZON = [
     './manifest.json',
     './vendor/msal-browser.min.js',
     './iconos/icono-192.png',
-    './iconos/icono-512.png'
+    './iconos/icono-512.png',
+    // El recortable lo declara el manifest y faltaba aqui: sin el, instalar la app sin
+    // señal deja al launcher sin el icono que usa para enmascarar.
+    './iconos/icono-512-recortable.png'
 ];
 
 self.addEventListener('install', evento => {
