@@ -39,15 +39,24 @@ export async function conReintento(hacer, alAvisar) {
 
 const dormir = ms => new Promise(res => setTimeout(res, ms));
 
-/** Mensaje util a partir de una respuesta fallida. */
+/**
+ * Mensaje util a partir de una respuesta fallida.
+ *
+ * NO nombra la operacion ni el recurso — eso lo pone quien llama, que es el unico que lo
+ * sabe. Esta funcion la usan por igual las lecturas (sitio, lista, subcarpetas) y las
+ * escrituras (crear carpeta, subir), asi que un 403 que dijera "para escribir" apunta a la
+ * cosa equivocada en la mitad de los casos: le paso a un operador el 2026-08-17, cuando lo
+ * que le faltaba era LECTURA del sitio del catalogo y el mensaje hablaba de escritura.
+ * Mismo motivo para el 404: aqui no se sabe si lo que no existe es una carpeta o un sitio.
+ */
 export async function motivo(r) {
     let detalle = '';
     try {
         const j = await r.json();
         detalle = j?.error?.message || j?.error?.code || '';
     } catch (_) { /* la respuesta no era JSON */ }
-    if (r.status === 403) return `sin permiso para escribir ahí (403). ${detalle}`;
-    if (r.status === 404) return `la carpeta no existe (404). ${detalle}`;
+    if (r.status === 403) return `sin permiso (403). ${detalle}`;
+    if (r.status === 404) return `no existe (404). ${detalle}`;
     if (r.status === 401) return `la sesión caducó (401). Vuelve a entrar.`;
     if (r.status === 507) return `no hay espacio en la biblioteca (507).`;
     return `HTTP ${r.status}. ${detalle}`;
@@ -64,10 +73,16 @@ export function crearCliente(graph, token) {
     }
 
     return {
-        /** Resuelve el identificador de un sitio a partir de su ruta. */
+        /**
+         * Resuelve el identificador de un sitio a partir de su ruta.
+         *
+         * La ruta va en el mensaje de error a proposito: es el unico dato que distingue
+         * "no alcanzo la unidad que elegi" de "no alcanzo el sitio del catalogo", y sin
+         * ella el 403 se lee como si fuera del destino de las fotos.
+         */
         async sitio(host, ruta) {
             const r = await pedir(`${graph}/sites/${host}:${ruta}`);
-            if (!r.ok) throw new Error('no se pudo abrir el sitio: ' + await motivo(r));
+            if (!r.ok) throw new Error(`no se pudo abrir el sitio ${ruta}: ` + await motivo(r));
             return (await r.json()).id;
         },
 
@@ -87,7 +102,7 @@ export function crearCliente(graph, token) {
             const r = await pedir(
                 `${graph}/sites/${siteId}/drive/root:/${rutaUrl(ruta)}:/children?$select=name,folder&$top=500`,
                 {}, avisar);
-            if (!r.ok) throw new Error('no se pudo leer la lista: ' + await motivo(r));
+            if (!r.ok) throw new Error(`no se pudieron leer las subcarpetas de ${ruta}: ` + await motivo(r));
             return (await r.json()).value.filter(x => x.folder).map(x => x.name);
         },
 
@@ -114,7 +129,7 @@ export function crearCliente(graph, token) {
                 })
             }, avisar);
 
-            if (!r.ok) throw new Error('no se pudo crear la carpeta: ' + await motivo(r));
+            if (!r.ok) throw new Error(`no se pudo crear la carpeta ${nombre} en ${rutaPadre || '(raíz)'}: ` + await motivo(r));
             const j = await r.json();
             return { nombreReal: j.name, id: j.id };
         },
@@ -127,14 +142,14 @@ export function crearCliente(graph, token) {
                 headers: { 'Content-Type': tipoMime },
                 body: bytes
             }, avisar);
-            if (!r.ok) throw new Error(`no se pudo subir ${nombreArchivo}: ` + await motivo(r));
+            if (!r.ok) throw new Error(`no se pudo subir ${nombreArchivo} a ${rutaCarpeta}: ` + await motivo(r));
             return await r.json();
         },
 
         /** Lee los renglones de una lista. */
         async renglonesDeLista(siteId, nombreLista) {
             const l = await pedir(`${graph}/sites/${siteId}/lists?$select=id,name,displayName&$top=200`);
-            if (!l.ok) throw new Error('no se pudo leer el catálogo: ' + await motivo(l));
+            if (!l.ok) throw new Error('no se pudo ver las listas de ese sitio: ' + await motivo(l));
             const lista = (await l.json()).value.find(
                 x => x.displayName === nombreLista || x.name === nombreLista);
             if (!lista) throw new Error(`no existe la lista ${nombreLista} en ese sitio`);

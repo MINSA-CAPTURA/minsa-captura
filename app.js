@@ -31,7 +31,7 @@ import { jpegsAPdf } from './pdf.js';
 import { crearCliente } from './subir.js';
 import { NOMBRE_MANIFIESTO, construirManifiesto, bytesDelManifiesto } from './manifiesto.js';
 
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 
 const $ = id => document.getElementById(id);
 
@@ -204,7 +204,14 @@ async function cargarCatalogo() {
                    `van a mostrar: ${descartados.map(d => d.motivo).join(' · ')}`, 'ojo');
         }
     } catch (e) {
-        throw new Error('no se pudo leer el catálogo. ' + (e && e.message ? e.message : e));
+        // El catalogo vive en un sitio APARTE del de la unidad, asi que este fallo no lo
+        // puede arreglar el operador aunque alcance su propia biblioteca: le falta lectura
+        // en el sitio del catalogo, y eso lo otorga Carlos. El mensaje lo dice porque el
+        // 2026-08-17 un operador quedo trabado aqui creyendo que era su sesion.
+        throw new Error(
+            `no se pudo leer el catálogo (lista ${CONFIG.catalogo.lista} en ` +
+            `${CONFIG.catalogo.ruta}). ${e && e.message ? e.message : e} — si dice "sin ` +
+            `permiso", pídele a Carlos acceso de LECTURA a ese sitio: no es tu sesión.`);
     }
 }
 

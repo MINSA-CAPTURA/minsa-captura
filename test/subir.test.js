@@ -6,7 +6,7 @@
 // con un nombre raro en vez de dar error.
 
 import assert from 'node:assert/strict';
-import { conReintento, rutaUrl, crearCliente } from '../subir.js';
+import { conReintento, rutaUrl, crearCliente, motivo } from '../subir.js';
 
 let pasadas = 0;
 const fallas = [];
@@ -161,6 +161,45 @@ await pruebaAsync('subcarpetas: un error NO devuelve lista vacia — truena y se
         const c = crearCliente('https://g', 'tok');
         await assert.rejects(c.subcarpetas('S', 'x'), /404/,
             'una lista vacia por error se leeria como "no hay servicios"');
+    } finally { globalThis.fetch = fetchReal; }
+});
+
+// ---------------------------------------------------------------- mensajes de error
+//
+// Un mensaje que apunta a la cosa equivocada cuesta mas que ninguno: el 2026-08-17 un
+// operador quedo trabado porque le faltaba LECTURA en el sitio del catalogo y el 403 decia
+// "sin permiso para escribir ahi" — lo mando a revisar la biblioteca a la que si alcanzaba.
+
+function respuestaJson(status, cuerpo) {
+    return {
+        ok: false, status,
+        headers: { get: () => null },
+        json: async () => cuerpo
+    };
+}
+
+await pruebaAsync('el 403 no afirma que la operacion era de escritura', async () => {
+    const m = await motivo(respuestaJson(403, { error: { message: 'Access denied' } }));
+    assert.ok(!/escrib/i.test(m), `motivo() sigue hablando de escritura: "${m}"`);
+    assert.ok(m.includes('403') && m.includes('Access denied'),
+        'se perdio el codigo o el detalle del servidor: ' + m);
+});
+
+await pruebaAsync('el 404 no afirma que lo que falta era una carpeta', async () => {
+    // Puede ser un sitio, una lista o una carpeta: quien llama es el que lo sabe.
+    const m = await motivo(respuestaJson(404, {}));
+    assert.ok(!/carpeta/i.test(m), `motivo() sigue asumiendo carpeta: "${m}"`);
+    assert.ok(m.includes('404'), m);
+});
+
+await pruebaAsync('sitio(): el error NOMBRA la ruta que fallo', async () => {
+    const fetchReal = globalThis.fetch;
+    globalThis.fetch = async () => respuestaJson(403, { error: { message: 'Access denied' } });
+    try {
+        const c = crearCliente('https://g', 'tok');
+        // Sin la ruta en el mensaje no hay forma de saber si el 403 fue del sitio de la
+        // unidad o del sitio del catalogo, que es un problema de otra persona.
+        await assert.rejects(c.sitio('h', '/sites/Administracion'), /\/sites\/Administracion/);
     } finally { globalThis.fetch = fetchReal; }
 });
 
