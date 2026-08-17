@@ -58,10 +58,14 @@ node servidor-local.js ../herramientas-dev/paso0.html    # una herramienta de de
 
 Y abrir **`http://localhost:8080/`** — la raíz, no `/paso0.html`.
 
-> **Por qué la raíz:** la URL de redirección registrada en Entra es exactamente
-> `http://localhost:8080/`. Si la página se abre en otra ruta, MSAL manda esa como `redirectUri` y
-> Entra la rechaza por no estar registrada. Por eso el servidor sirve el archivo indicado **en la
-> raíz** en lugar de exponer el directorio.
+> **Por qué la raíz:** cuando se prueba en local, la URL de redirección que se registra en Entra
+> es exactamente `http://localhost:8080/`. Si la página se abre en otra ruta, MSAL manda esa como
+> `redirectUri` y Entra la rechaza por no estar registrada. Por eso el servidor sirve el archivo
+> indicado **en la raíz** en lugar de exponer el directorio.
+>
+> **Esa URI se quitó de Entra al publicar** (2026-08-16): el login local va a fallar con
+> AADSTS50011 hasta que se re-agregue **temporalmente** en Entra → Authentication → plataforma SPA
+> — y se vuelve a quitar al terminar. La app publicada no la necesita.
 
 ## Dependencias vendorizadas
 
