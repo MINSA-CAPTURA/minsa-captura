@@ -26,12 +26,13 @@ import { CONFIG } from './config.js';
 import { slug, fechaMexico, nombreCarpeta, nombreArchivo, limpiarEtiqueta } from './nombre.js';
 import { normalizarCatalogo, opcionesDe } from './catalogo.js';
 import { comprimir } from './imagen.js';
+import * as camara from './camara.js';
 import { mover, puedeMover } from './orden.js';
 import { jpegsAPdf } from './pdf.js';
 import { crearCliente } from './subir.js';
 import { NOMBRE_MANIFIESTO, construirManifiesto, bytesDelManifiesto } from './manifiesto.js';
 
-const VERSION = '0.5.1';
+const VERSION = '0.6.0';
 
 const $ = id => document.getElementById(id);
 
@@ -340,6 +341,18 @@ async function cargarServicios(op) {
 
 // ---------------------------------------------------------------- piezas
 
+// La unica puerta por la que una imagen entra al lote, venga del archivo del celular o del
+// visor de la camara. Devuelve la pieza para quien necesite su miniatura de inmediato.
+async function agregarImagen(imagen) {
+    const r = await comprimir(imagen);
+    const pieza = {
+        bytes: r.bytes,
+        urlPrevia: URL.createObjectURL(new Blob([r.bytes], { type: 'image/jpeg' }))
+    };
+    estado.piezas.push(pieza);
+    return pieza;
+}
+
 async function agregarArchivos(lista) {
     const archivos = Array.from(lista || []).filter(f => f.type.startsWith('image/'));
     if (archivos.length === 0) return;
@@ -347,17 +360,88 @@ async function agregarArchivos(lista) {
     const trabajando = avisar(`Preparando ${archivos.length} foto(s)…`);
     for (const archivo of archivos) {
         try {
-            const r = await comprimir(archivo);
-            estado.piezas.push({
-                bytes: r.bytes,
-                urlPrevia: URL.createObjectURL(new Blob([r.bytes], { type: 'image/jpeg' }))
-            });
+            await agregarImagen(archivo);
         } catch (e) {
             avisar(`No se pudo preparar ${archivo.name}: ${e.message}`, 'error');
         }
     }
     trabajando.remove();
     alCambiar();
+}
+
+// ---------------------------------------------------------------- cámara integrada
+
+// El visor se queda ABIERTO entre disparo y disparo: se toma una foto, se cambia de angulo y
+// se vuelve a disparar sin regresar a la pantalla. Con la camara nativa (`capture`) eso no se
+// puede — el sistema toma UNA y devuelve la app —, y documentar un equipo desde varios
+// angulos costaba un viaje de ida y vuelta por foto.
+
+const visor = { stream: null, ocupado: false };
+
+function pintarCuentaCamara() {
+    const esDoc = !!(opcionActual() && opcionActual().tipo === 'documento');
+    const n = estado.piezas.length;
+    const cosa = esDoc ? 'hoja' : 'foto';
+    $('camaraCuenta').textContent = n === 0
+        ? `Sin ${cosa}s todavía`
+        : `${n} ${cosa}${n === 1 ? '' : 's'} en este lote`;
+}
+
+async function abrirVisor() {
+    // Se descubre y se muestra ANTES de pedir la camara: iOS no reproduce un <video> que
+    // esta en un contenedor con display:none, y ahi el visor arrancaria en negro.
+    $('camara').classList.remove('oculto');
+    document.body.classList.add('con-camara');
+    $('camaraUltima').hidden = true;
+    $('camaraUltima').removeAttribute('src');
+    pintarCuentaCamara();
+
+    try {
+        visor.stream = await camara.abrir($('camaraVideo'));
+    } catch (e) {
+        cerrarVisor();
+        // No se abre la camara nativa por cuenta propia: entre el aviso de permiso y la
+        // respuesta se pierde el gesto del usuario, y el navegador bloquearia ese clic
+        // automatico sin decir nada. Se dice que hacer y el boton esta ahi abajo.
+        avisar(camara.mensajeDeFallo(e), 'ojo');
+    }
+}
+
+function cerrarVisor() {
+    camara.cerrar(visor.stream, $('camaraVideo'));
+    visor.stream = null;
+    $('camara').classList.add('oculto');
+    document.body.classList.remove('con-camara');
+}
+
+async function disparar() {
+    // La compresion de un cuadro de 2560 px tarda un momento en un celular. Sin este cerrojo,
+    // dos piquetes seguidos meten dos veces la MISMA foto — y en un documento eso es una hoja
+    // duplicada que ya nadie distingue de una hoja repetida a proposito.
+    if (visor.ocupado || !visor.stream) return;
+    visor.ocupado = true;
+    $('camaraDisparo').disabled = true;
+    try {
+        const foto = await camara.capturar($('camaraVideo'));
+        const pieza = await agregarImagen(foto);
+
+        $('camaraDestello').classList.remove('dispara');
+        void $('camaraDestello').offsetWidth;      // reinicia la animación
+        $('camaraDestello').classList.add('dispara');
+        if (navigator.vibrate) navigator.vibrate(30);
+
+        const ultima = $('camaraUltima');
+        ultima.src = pieza.urlPrevia;
+        ultima.hidden = false;
+
+        alCambiar();                 // deja lista la pantalla de atrás
+        pintarCuentaCamara();
+    } catch (e) {
+        avisar('No se pudo guardar la foto: ' + (e && e.message ? e.message : e), 'error');
+    } finally {
+        visor.ocupado = false;
+        $('camaraDisparo').disabled = false;
+    }
 }
 
 // Un solo repintado para todo lo que depende del estado: `alCambiar` es la unica puerta y
@@ -467,6 +551,11 @@ function alCambiar() {
     const esDoc = op && op.tipo === 'documento';
     $('tituloPiezas').textContent = esDoc ? 'Páginas del documento' : 'Fotos';
     $('btnCamara').textContent = esDoc ? 'Fotografiar el documento' : 'Tomar fotos';
+    // Se nombra por lo que la distingue del botón de arriba, que es el ritmo — no por la
+    // marca de la cámara: «una por una» es lo que el operador va a sentir.
+    $('btnCamaraNativa').textContent = esDoc
+        ? 'Cámara del teléfono (hoja por hoja)'
+        : 'Cámara del teléfono (una por una)';
     pintarMiniaturas(esDoc);
 
     // El campo de servicio solo existe para las opciones que lo piden (B8).
@@ -646,7 +735,28 @@ $('btnOtro').addEventListener('click', () => {
     $('pantallaCaptura').classList.remove('oculto');
     $('pantallaUnidad').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
-$('btnCamara').addEventListener('click', () => $('entradaCamara').click());
+// La cámara integrada es la ruta normal; si este navegador no la tiene, el botón principal
+// cae en la cámara nativa y el segundo botón sobra — dos botones que hacen lo mismo son una
+// pregunta que el operador no tiene por qué contestar.
+const hayVisor = camara.soportada();
+$('btnCamara').addEventListener('click', () => {
+    if (hayVisor) abrirVisor(); else $('entradaCamara').click();
+});
+if (!hayVisor) $('btnCamaraNativa').classList.add('oculto');
+$('btnCamaraNativa').addEventListener('click', () => $('entradaCamara').click());
+$('camaraDisparo').addEventListener('click', disparar);
+$('camaraListo').addEventListener('click', cerrarVisor);
+$('camaraCerrar').addEventListener('click', cerrarVisor);
+// Escape cierra: en la PWA de escritorio (Carlos revisando desde la computadora) es el
+// reflejo, y sin esto el visor se queda encima sin salida evidente.
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && visor.stream) cerrarVisor();
+});
+// Al volver de otra app, iOS deja el <video> pausado y el visor se ve congelado. Ojo: no es
+// un error, así que sin esto el operador dispararía sobre una imagen vieja.
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && visor.stream) $('camaraVideo').play().catch(() => {});
+});
 $('btnGaleria').addEventListener('click', () => $('entradaGaleria').click());
 $('entradaCamara').addEventListener('change', e => { agregarArchivos(e.target.files); e.target.value = ''; });
 $('entradaGaleria').addEventListener('change', e => { agregarArchivos(e.target.files); e.target.value = ''; });

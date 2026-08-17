@@ -8,7 +8,7 @@
 // Ojo: un service worker se queda instalado. Si algún día hay que sacar uno malo, se sube
 // el número de CACHE y se borra lo viejo en 'activate' — que es justo lo que hace esto.
 
-const CACHE = 'minsa-captura-v8';
+const CACHE = 'minsa-captura-v9';
 
 const ARMAZON = [
     './',
@@ -19,6 +19,7 @@ const ARMAZON = [
     './nombre.js',
     './catalogo.js',
     './imagen.js',
+    './camara.js',
     './orden.js',
     './pdf.js',
     './subir.js',

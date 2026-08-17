@@ -111,6 +111,14 @@
     <div class="tarjeta">
       <h2><span class="paso">2</span><span id="tituloPiezas">Fotos</span></h2>
       <button id="btnCamara" class="principal">Tomar fotos</button>
+      <!--
+        La segunda ruta a la camara, no un duplicado: `capture` le pide al celular su camara
+        nativa, que toma UNA y regresa. Se queda por dos razones — la nitidez del motor de
+        fotos del telefono para un documento con letra chica, y ser el respaldo el dia que
+        alguien le niegue el permiso de camara a la pagina. Si el navegador no puede abrir la
+        camara integrada, app.js esconde este boton y el de arriba usa esta misma entrada.
+      -->
+      <button id="btnCamaraNativa" class="secundario">Cámara del teléfono (una por una)</button>
       <button id="btnGaleria" class="secundario">Elegir de la galería</button>
       <input type="file" id="entradaCamara" accept="image/*" capture="environment" multiple hidden>
       <input type="file" id="entradaGaleria" accept="image/*" multiple hidden>
@@ -145,6 +153,28 @@
   </section>
 
   <p class="pie" id="pie"></p>
+</div>
+
+<!--
+  Camara integrada. Vive FUERA de .hoja porque ocupa la pantalla entera: dentro heredaria el
+  ancho maximo de la hoja y el visor quedaria en una columna al centro.
+-->
+<div id="camara" class="camara oculto" role="dialog" aria-modal="true" aria-label="Cámara">
+  <video id="camaraVideo" class="camara-visor" playsinline autoplay muted></video>
+  <div id="camaraDestello" class="camara-destello" aria-hidden="true"></div>
+
+  <div class="camara-arriba">
+    <!-- role=status: el operador trae guantes y no siempre mira la pantalla al disparar;
+         el lector de pantalla canta la cuenta sin que tenga que buscarla. -->
+    <span id="camaraCuenta" class="camara-cuenta" role="status" aria-live="polite"></span>
+    <button id="camaraCerrar" class="camara-x" type="button" aria-label="Cerrar la cámara">×</button>
+  </div>
+
+  <div class="camara-abajo">
+    <img id="camaraUltima" class="camara-ultima" alt="" hidden>
+    <button id="camaraDisparo" class="camara-disparo" type="button" aria-label="Tomar la foto"></button>
+    <button id="camaraListo" class="camara-listo" type="button">Listo</button>
+  </div>
 </div>
 
 <script src="./vendor/msal-browser.min.js"></script>
