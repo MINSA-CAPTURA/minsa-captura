@@ -31,7 +31,7 @@ import { jpegsAPdf } from './pdf.js';
 import { crearCliente } from './subir.js';
 import { NOMBRE_MANIFIESTO, construirManifiesto, bytesDelManifiesto } from './manifiesto.js';
 
-const VERSION = '0.4.1';
+const VERSION = '0.4.2';
 
 const $ = id => document.getElementById(id);
 
@@ -88,37 +88,86 @@ async function token() {
     }
 }
 
+// El login va por REDIRECCION, no por ventana emergente (v0.4.2). El popup dependia de
+// que la ventanita conservara el vinculo con la pagina que la abrio, y en celulares se
+// rompe con facilidad: el navegador integrado de WhatsApp la abre como pestana suelta,
+// la respuesta de Microsoft aterriza sin su solicitud en sessionStorage y MSAL truena
+// con no_token_request_cache_error (le paso a la primera operadora real, 2026-08-16).
+// Con loginRedirect la PROPIA pagina va a Microsoft y regresa: no hay segunda ventana
+// que perder. Es ademas lo que MSAL recomienda para moviles/PWA.
+
+let msalListo = false;
+
+async function prepararMsal() {
+    if (msalListo) return null;
+    await pca.initialize();
+    // Procesa el retorno de Microsoft si esta carga viene de un loginRedirect. Tiene que
+    // correr en CADA carga de la pagina, no solo al picar el boton: el regreso del login
+    // es una carga nueva donde nadie ha picado nada.
+    const respuesta = await pca.handleRedirectPromise();
+    msalListo = true;
+    return respuesta;
+}
+
+async function sesionIniciada() {
+    estado.cuenta = pca.getAllAccounts()[0];
+    estado.token = await token();
+    estado.cliente = crearCliente(CONFIG.graph, estado.token);
+    $('quien').textContent = estado.cuenta.username;
+    $('btnSalir').classList.remove('oculto');
+
+    $('textoEntrar').textContent = 'Buscando a qué áreas tienes acceso…';
+    await descubrirUnidades();
+    await cargarCatalogo();
+
+    pintarUnidades();
+    $('pantallaEntrar').classList.add('oculto');
+    $('pantallaUnidad').classList.remove('oculto');
+
+    // Si sólo alcanza un área, no tiene caso hacerle elegir.
+    if (estado.unidades.length === 1) {
+        elegirUnidad(estado.unidades[0], $('fichasUnidad').firstElementChild);
+    }
+}
+
 async function entrar() {
     $('btnEntrar').disabled = true;
     $('textoEntrar').textContent = 'Entrando…';
     try {
-        await pca.initialize();
-        await pca.handleRedirectPromise();
+        await prepararMsal();
         if (pca.getAllAccounts().length === 0) {
-            await pca.loginPopup({ scopes: CONFIG.scopes });
+            // La pagina entera navega a Microsoft; al volver, arrancar() retoma.
+            await pca.loginRedirect({ scopes: CONFIG.scopes });
+            return;
         }
-        estado.cuenta = pca.getAllAccounts()[0];
-        estado.token = await token();
-        estado.cliente = crearCliente(CONFIG.graph, estado.token);
-        $('quien').textContent = estado.cuenta.username;
-        $('btnSalir').classList.remove('oculto');
-
-        $('textoEntrar').textContent = 'Buscando a qué áreas tienes acceso…';
-        await descubrirUnidades();
-        await cargarCatalogo();
-
-        pintarUnidades();
-        $('pantallaEntrar').classList.add('oculto');
-        $('pantallaUnidad').classList.remove('oculto');
-
-        // Si sólo alcanza un área, no tiene caso hacerle elegir.
-        if (estado.unidades.length === 1) {
-            elegirUnidad(estado.unidades[0], $('fichasUnidad').firstElementChild);
-        }
+        await sesionIniciada();
     } catch (e) {
         avisar('No se pudo entrar: ' + (e && e.message ? e.message : e), 'error');
         $('btnEntrar').disabled = false;
         $('textoEntrar').textContent = 'Vuelve a intentarlo.';
+    }
+}
+
+// Corre en cada carga: si esta pagina es el REGRESO de un loginRedirect (o ya hay sesion
+// viva en esta pestana), entra sola sin esperar otro clic. Y si el retorno no se puede
+// procesar, lo dice y deja el boton vivo para reintentar limpio — antes ese caso era un
+// callejon sin salida.
+async function arrancar() {
+    // El marco PROPIO es la renovacion silenciosa de MSAL (ver el framebuster arriba):
+    // esa carga no debe arrancar la app ni sondear Graph — el padre solo lee el hash.
+    if (window.self !== window.top) return;
+    try {
+        const respuesta = await prepararMsal();
+        if (respuesta || pca.getAllAccounts().length > 0) {
+            $('btnEntrar').disabled = true;
+            $('textoEntrar').textContent = 'Entrando…';
+            await sesionIniciada();
+        }
+    } catch (e) {
+        avisar('No se pudo terminar el inicio de sesión: ' +
+               (e && e.message ? e.message : e), 'error');
+        $('btnEntrar').disabled = false;
+        $('textoEntrar').textContent = 'Vuelve a picar Entrar.';
     }
 }
 
@@ -526,6 +575,8 @@ $('txtConcepto').addEventListener('input', alCambiar);
 $('btnEnviar').addEventListener('click', enviar);
 
 $('pie').textContent = `MINSA Captura ${VERSION}`;
+
+arrancar();
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
