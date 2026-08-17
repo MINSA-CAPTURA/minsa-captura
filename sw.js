@@ -16,7 +16,7 @@
 // del armazón lleva `cache: 'reload'`, que salta esa caché y va a la red de verdad.
 // Sin eso, el número de CACHE da una sensación de control que no tiene.
 
-const CACHE = 'minsa-captura-v11';
+const CACHE = 'minsa-captura-v12';
 
 // Pide un recurso del armazón SALTÁNDOSE la caché HTTP. Es la única forma de que "versión
 // nueva" signifique la del servidor y no la que el navegador guardó hace diez minutos.
