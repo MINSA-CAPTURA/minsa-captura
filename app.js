@@ -31,7 +31,7 @@ import { jpegsAPdf } from './pdf.js';
 import { crearCliente } from './subir.js';
 import { NOMBRE_MANIFIESTO, construirManifiesto, bytesDelManifiesto } from './manifiesto.js';
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 
 const $ = id => document.getElementById(id);
 
@@ -165,9 +165,20 @@ function pintarUnidades() {
     cont.textContent = '';
     for (const u of estado.unidades) {
         const b = document.createElement('button');
-        b.className = 'ficha';
+        // La clase de rama solo pinta la rayita indicadora; el nombre y la rama van como
+        // texto, siempre con textContent (regla A3: nada de innerHTML).
+        b.className = 'ficha' + (u.rama ? ` rama-${u.rama}` : '');
         b.type = 'button';
-        b.textContent = u.nombre;
+        const nombre = document.createElement('span');
+        nombre.className = 'n';
+        nombre.textContent = u.nombre;
+        b.appendChild(nombre);
+        if (u.ramaNombre) {
+            const rama = document.createElement('span');
+            rama.className = 'r';
+            rama.textContent = u.ramaNombre;
+            b.appendChild(rama);
+        }
         b.setAttribute('aria-pressed', 'false');
         b.addEventListener('click', () => elegirUnidad(u, b));
         cont.appendChild(b);
@@ -452,9 +463,19 @@ async function enviar() {
 
         $('barraAvance').style.width = '100%';
         paso('Listo.');
-        avisar(`Se subió a ${unidad.nombre} · ${nombreReal}. ` +
-               `Ya está en el buzón para que se archive.`, 'bien');
+        // La confirmación es una pantalla, no un mensajito: el operador acaba de soltar
+        // evidencia y merece ver QUÉ se fue y CUÁNTO antes de decidir si captura otro.
+        // Los datos se toman ANTES de reiniciar, que vacía las piezas.
+        $('exitoQue').textContent = `${op.etiqueta} · ${unidad.nombre}`;
+        $('exitoCuanto').textContent = esDoc
+            ? `${estado.piezas.length} hoja(s) → un solo PDF`
+            : `${estado.piezas.length} foto(s)`;
+        $('exitoDestino').textContent = nombreReal;
         reiniciarLote();
+        $('pantallaCaptura').classList.add('oculto');
+        $('pantallaUnidad').classList.add('oculto');
+        $('pantallaExito').classList.remove('oculto');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
         avisar('No se pudo terminar: ' + (e && e.message ? e.message : e), 'error');
         avisar('Lo que ya subió se quedó en la carpeta, pero el lote quedó SIN CERRAR: ' +
@@ -490,6 +511,12 @@ async function salir() {
 
 $('btnEntrar').addEventListener('click', entrar);
 $('btnSalir').addEventListener('click', salir);
+$('btnOtro').addEventListener('click', () => {
+    $('pantallaExito').classList.add('oculto');
+    $('pantallaUnidad').classList.remove('oculto');
+    $('pantallaCaptura').classList.remove('oculto');
+    $('pantallaUnidad').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 $('btnCamara').addEventListener('click', () => $('entradaCamara').click());
 $('btnGaleria').addEventListener('click', () => $('entradaGaleria').click());
 $('entradaCamara').addEventListener('change', e => { agregarArchivos(e.target.files); e.target.value = ''; });

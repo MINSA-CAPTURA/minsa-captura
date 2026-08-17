@@ -1,6 +1,6 @@
 {
   "name": "minsa-captura",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "PWA de captura de fotos y documentos a los buzones de MINSA ENERGY",

@@ -1,33 +1,54 @@
 /* MINSA Captura — pensado para un celular en la planta, con guantes y a pleno sol.
-   Por eso: botones grandes, contraste alto y nada que requiera precisión con el dedo. */
+   Por eso: botones grandes, contraste alto y nada que requiera precisión con el dedo.
+
+   v0.4.0: la app se pone el uniforme. Paleta del kit oficial del logo (spec 2026-08-04):
+   acción en navy MINSA #0833a3; en oscuro la acción usa el verde 500 del build oscuro del
+   logo, que es como la marca ya resolvió "MINSA de noche". El color de rama aparece SOLO
+   como indicador chico (la rayita de las fichas) — la regla de marca: señala, no domina. */
 
 :root {
     color-scheme: light dark;
-    --tinta: #16202b;
+    --tinta: #17202c;
     --papel: #ffffff;
-    --fondo: #f2f4f7;
-    --borde: #d3d9e0;
-    --suave: #5d6b7a;
-    --acento: #0f5c8c;
+    --fondo: #f3f5f8;
+    --borde: #d8dee6;
+    --suave: #5c6a7a;
+    --chip: #eef1f6;
+    --acento: #0833a3;
     --acento-texto: #ffffff;
-    --ok: #17803d;
+    --ok: #2c8a37;
     --mal: #b3261e;
     --aviso: #8a5a00;
-    --radio: .6rem;
+    --radio: .7rem;
+    /* Colores del logo (build claro oficial). El oscuro los cambia al build oscuro. */
+    --logo-verde: #2c8a37;
+    --logo-azul: #0833a3;
+    /* Ramas del holding — solo para la rayita de las fichas. */
+    --rama-ambiental: #3fae4b;
+    --rama-quimicos: #0f8fd6;
+    --rama-admin: #0833a3;
+    --sombra-tarjeta: 0 1px 3px rgba(16, 29, 50, .06);
+    --sombra-boton: 0 3px 10px rgba(8, 51, 163, .22);
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --tinta: #e8edf2;
-        --papel: #1b2430;
-        --fondo: #121821;
-        --borde: #33404f;
-        --suave: #9fb0c0;
-        --acento: #4da3dd;
-        --acento-texto: #0b1520;
-        --ok: #5cc98a;
+        --tinta: #e9eef5;
+        --papel: #182331;
+        --fondo: #0f1722;
+        --borde: #2c3a4c;
+        --suave: #9db0c2;
+        --chip: #202d3d;
+        --acento: #61cd6a;
+        --acento-texto: #0b2410;
+        --ok: #61cd6a;
         --mal: #ff8a80;
         --aviso: #e0b350;
+        --logo-verde: #61cd6a;
+        --logo-azul: #ffffff;
+        --rama-admin: #7da3ff;
+        --sombra-tarjeta: 0 1px 3px rgba(0, 0, 0, .25);
+        --sombra-boton: 0 3px 10px rgba(97, 205, 106, .2);
     }
 }
 
@@ -48,39 +69,83 @@ body {
     padding: 1rem 1rem 4rem;
 }
 
+/* ---------------------------------------------------------------- logo */
+
+/* El contenedor de <defs> no ocupa lugar; los usos toman su tamaño del CSS de cada sitio. */
+.defs-logo { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* Los colores del logo se pintan AQUÍ, no en el SVG: así el modo oscuro cambia al build
+   oscuro oficial (símbolo y ENERGY en verde 500, MINSA en blanco) sin duplicar el asset.
+   Las reglas apuntan a la fuente en <defs>; cada <use> hereda lo mismo. */
+#lg-sim { fill: var(--logo-verde); stroke: var(--logo-verde); }
+.lg-verde path { fill: var(--logo-verde); }
+.lg-azul path { fill: var(--logo-azul); }
+
+/* ---------------------------------------------------------------- encabezado */
+
 header {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+    align-items: center;
     gap: .5rem;
-    padding: .2rem 0 .8rem;
+    padding: .25rem 0 .85rem;
     flex-wrap: wrap;
 }
-header h1 { font-size: 1.15rem; margin: 0; letter-spacing: .01em; }
-#quien { font-size: .8rem; color: var(--suave); }
+header .marca { width: 1.3rem; height: 1.55rem; flex: 0 0 auto; }
+header h1 { font-size: 1.05rem; margin: 0; letter-spacing: .005em; font-weight: 650; }
+#quien {
+    margin-left: auto;
+    font-size: .72rem;
+    color: var(--suave);
+    background: var(--chip);
+    border-radius: 2rem;
+    padding: .2rem .65rem;
+    max-width: 55%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
 .tarjeta {
     background: var(--papel);
     border: 1px solid var(--borde);
     border-radius: var(--radio);
+    box-shadow: var(--sombra-tarjeta);
     padding: 1rem;
     margin-bottom: .9rem;
 }
 
 h2 {
-    font-size: .78rem;
+    display: flex;
+    align-items: center;
+    font-size: .74rem;
     text-transform: uppercase;
-    letter-spacing: .07em;
+    letter-spacing: .08em;
     color: var(--suave);
-    margin: 0 0 .55rem;
-    font-weight: 600;
+    margin: 0 0 .6rem;
+    font-weight: 650;
+}
+
+/* El número de paso: la captura ES una secuencia (qué es → fotos → enviar). */
+.paso {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: var(--chip);
+    color: var(--tinta);
+    font-size: .68rem;
+    letter-spacing: 0;
+    margin-right: .45rem;
+    flex: 0 0 auto;
 }
 
 button, .boton {
     font: inherit;
     font-weight: 600;
     padding: .85rem 1.1rem;
-    border-radius: var(--radio);
+    border-radius: .65rem;
     border: 1px solid var(--borde);
     background: var(--papel);
     color: var(--tinta);
@@ -93,14 +158,17 @@ button, .boton {
     text-align: center;
 }
 button:disabled { opacity: .45; cursor: default; }
+button:not(:disabled):active { transform: translateY(1px); }
 
 .principal {
     background: var(--acento);
     color: var(--acento-texto);
     border-color: transparent;
+    box-shadow: var(--sombra-boton);
     width: 100%;
     font-size: 1.05rem;
 }
+.principal:disabled { box-shadow: none; }
 
 /* Antes estos dos iban como style="" en el HTML — y la CSP (style-src 'self', sin
    'unsafe-inline') bloquea los atributos de estilo en linea, asi que no aplicaban. */
@@ -116,21 +184,61 @@ button:disabled { opacity: .45; cursor: default; }
     color: var(--suave);
 }
 
-/* Selector de unidad: fichas grandes, fáciles de picar. */
-.fichas { display: flex; flex-wrap: wrap; gap: .5rem; }
-.ficha {
-    flex: 1 1 8rem;
-    padding: .9rem .6rem;
-    border: 1.5px solid var(--borde);
-    border-radius: var(--radio);
-    background: var(--papel);
-    font-weight: 600;
+/* ---------------------------------------------------------------- entrar */
+
+.entrada {
+    text-align: center;
+    padding: 2.2rem 1.4rem 2rem;
+    background:
+        radial-gradient(70% 45% at 12% 0%, color-mix(in srgb, var(--logo-azul) 6%, transparent), transparent 70%),
+        radial-gradient(55% 38% at 92% 100%, color-mix(in srgb, var(--logo-verde) 8%, transparent), transparent 72%),
+        var(--papel);
 }
+.entrada .lockup {
+    display: block;
+    width: min(14.5rem, 82%);
+    aspect-ratio: 724.454 / 256.393;
+    margin: .4rem auto 1.4rem;
+}
+.entrada .pista { font-size: .84rem; max-width: 30ch; margin: 0 auto 1.3rem; }
+.entrada .principal { max-width: 15rem; margin: 0 auto; }
+
+/* ---------------------------------------------------------------- fichas de área */
+
+.fichas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: .55rem;
+}
+.ficha {
+    position: relative;
+    overflow: hidden;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .05rem;
+    padding: .75rem .8rem .75rem 1.05rem;
+    border-width: 1.5px;
+    text-align: left;
+    min-height: 3.4rem;
+    transition: border-color .15s, background-color .15s;
+}
+/* La rayita de rama: el color señala la rama, nunca pinta la ficha entera. */
+.ficha::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--rama, var(--borde));
+}
+.ficha .n { font-weight: 650; font-size: .92rem; display: block; }
+.ficha .r { font-size: .68rem; font-weight: 500; color: var(--suave); display: block; }
 .ficha[aria-pressed="true"] {
     border-color: var(--acento);
-    background: color-mix(in srgb, var(--acento) 12%, transparent);
-    color: var(--acento);
+    background: color-mix(in srgb, var(--acento) 9%, var(--papel));
 }
+.rama-ambiental { --rama: var(--rama-ambiental); }
+.rama-quimicos { --rama: var(--rama-quimicos); }
+.rama-admin { --rama: var(--rama-admin); }
 
 label { display: block; font-size: .85rem; color: var(--suave); margin-bottom: .3rem; }
 
@@ -138,7 +246,7 @@ select, input[type="text"], textarea {
     font: inherit;
     width: 100%;
     padding: .8rem .7rem;
-    border-radius: var(--radio);
+    border-radius: .55rem;
     border: 1px solid var(--borde);
     background: var(--papel);
     color: var(--tinta);
@@ -149,8 +257,10 @@ textarea { resize: vertical; min-height: 4.5rem; }
 .campo + .campo { margin-top: .8rem; }
 
 .pista { font-size: .78rem; color: var(--suave); margin: .35rem 0 0; }
+.sin-margen { margin-top: 0; }
 
-/* Miniaturas */
+/* ---------------------------------------------------------------- miniaturas */
+
 .miniaturas {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(5.2rem, 1fr));
@@ -167,8 +277,8 @@ textarea { resize: vertical; min-height: 4.5rem; }
 }
 .mini .num {
     position: absolute; left: .25rem; bottom: .25rem;
-    background: rgba(0,0,0,.65); color: #fff;
-    font-size: .7rem; padding: .05rem .3rem; border-radius: .25rem;
+    background: rgba(9, 17, 28, .72); color: #fff;
+    font-size: .7rem; font-weight: 600; padding: .05rem .32rem; border-radius: .25rem;
 }
 .mini .quitar {
     position: absolute; top: -.4rem; right: -.4rem;
@@ -196,15 +306,62 @@ textarea { resize: vertical; min-height: 4.5rem; }
     color: var(--suave);
     word-break: break-all;
     background: var(--fondo);
-    border-radius: .4rem;
+    border-radius: .45rem;
     padding: .5rem .6rem;
-    margin-top: .7rem;
+    margin-top: .45rem;
+    white-space: pre-wrap;
 }
 
-/* Estados */
+/* ---------------------------------------------------------------- enviado */
+
+.exito { text-align: center; padding: 2rem 1.2rem 1.8rem; }
+.exito .aro {
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    background: color-mix(in srgb, var(--ok) 13%, var(--papel));
+    border: 2px solid var(--ok);
+    display: flex; align-items: center; justify-content: center;
+    animation: exito-pop .45s cubic-bezier(.2, 1.4, .5, 1) both;
+}
+.exito .aro svg {
+    width: 40px; height: 40px;
+    stroke: var(--ok); stroke-width: 3.4; fill: none;
+    stroke-linecap: round; stroke-linejoin: round;
+}
+@keyframes exito-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+    .exito .aro { animation: none; }
+    button:not(:disabled):active { transform: none; }
+}
+.exito-titulo {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 650;
+    letter-spacing: -.01em;
+    text-transform: none;
+    color: var(--tinta);
+    margin: 0 0 .4rem;
+}
+.exito-linea { font-size: .88rem; color: var(--suave); margin: 0 0 .25rem; }
+.exito-destino {
+    display: inline-block;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: .68rem;
+    color: var(--tinta);
+    background: var(--chip);
+    border-radius: .4rem;
+    padding: .3rem .55rem;
+    margin: .4rem 0 .2rem;
+    word-break: break-all;
+}
+.exito .principal { max-width: 15rem; margin: 1.2rem auto 0; }
+
+/* ---------------------------------------------------------------- estados */
+
 .oculto { display: none !important; }
 
-#avance { margin-top: .7rem; font-size: .9rem; }
+#avance { margin-top: .7rem; font-size: .9rem; display: block; }
 .barra {
     height: .45rem; background: var(--fondo); border-radius: 1rem;
     overflow: hidden; margin-top: .5rem; border: 1px solid var(--borde);

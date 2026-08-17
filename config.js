@@ -33,11 +33,13 @@ export const CONFIG = {
     // la carpeta se vea como 'Administracion-Finanzas'. Pasa cuando un sitio se renombra
     // despues de crearse. NUNCA construir una de estas rutas a partir del nombre de la
     // biblioteca: hay que traerla verificada, como estas.
+    // `rama`/`ramaNombre` solo pintan el indicador de rama en la ficha (la rayita y el
+    // subtitulo); no participan en rutas ni permisos.
     unidades: [
-        { clave: 'CALYTEK',  nombre: 'CALYTEK',  ruta: '/sites/Ambiental-CALYTEK' },
-        { clave: 'PITEPEC',  nombre: 'PITEPEC',  ruta: '/sites/Quimicos-PITEPEC' },
-        { clave: 'RABASA',   nombre: 'RABASA',   ruta: '/sites/Quimicos-RABASA' },
-        { clave: 'LEGAL',    nombre: 'Legal',    ruta: '/sites/Administracion-Legal' },
-        { clave: 'FINANZAS', nombre: 'Finanzas', ruta: '/sites/Administracion-Documentos' }
+        { clave: 'CALYTEK',  nombre: 'CALYTEK',  ruta: '/sites/Ambiental-CALYTEK',        rama: 'ambiental', ramaNombre: 'Ambiental' },
+        { clave: 'PITEPEC',  nombre: 'PITEPEC',  ruta: '/sites/Quimicos-PITEPEC',         rama: 'quimicos',  ramaNombre: 'Químicos' },
+        { clave: 'RABASA',   nombre: 'RABASA',   ruta: '/sites/Quimicos-RABASA',          rama: 'quimicos',  ramaNombre: 'Químicos' },
+        { clave: 'LEGAL',    nombre: 'Legal',    ruta: '/sites/Administracion-Legal',     rama: 'admin',     ramaNombre: 'Administración' },
+        { clave: 'FINANZAS', nombre: 'Finanzas', ruta: '/sites/Administracion-Documentos', rama: 'admin',    ramaNombre: 'Administración' }
     ]
 };
