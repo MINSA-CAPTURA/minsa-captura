@@ -31,7 +31,7 @@ import { jpegsAPdf } from './pdf.js';
 import { crearCliente } from './subir.js';
 import { NOMBRE_MANIFIESTO, construirManifiesto, bytesDelManifiesto } from './manifiesto.js';
 
-const VERSION = '0.4.2';
+const VERSION = '0.5.0';
 
 const $ = id => document.getElementById(id);
 
@@ -43,7 +43,8 @@ const estado = {
     unidad: null,
     catalogo: [],
     opciones: [],
-    piezas: []           // {archivo, urlPrevia, bytes, ancho, alto}
+    piezas: [],          // {archivo, urlPrevia, bytes, ancho, alto}
+    servicios: new Map() // cache de subcarpetas por `${siteId}|${ruta}` (B8)
 };
 
 // NO llamar a esta variable `msal`: taparia el global que expone el bundle UMD.
@@ -242,6 +243,7 @@ function elegirUnidad(u, boton) {
     estado.opciones = opcionesDe(estado.catalogo, u.clave);
     const sel = $('selEtiqueta');
     sel.textContent = '';
+    $('selServicio').textContent = '';   // lo de otra unidad no debe sobrevivir aqui
     if (estado.opciones.length === 0) {
         const o = document.createElement('option');
         o.textContent = '(esta área no tiene opciones en el catálogo)';
@@ -271,6 +273,62 @@ function elegirUnidad(u, boton) {
 
 function opcionActual() {
     return estado.opciones.find(o => o.etiqueta === $('selEtiqueta').value) || null;
+}
+
+// ---------------------------------------------------------------- servicio (B8)
+
+// Una opcion cuyo destino trae el marcador '/*' en el catalogo (hoy: la evidencia de
+// servicio de PITEPEC) no tiene destino final fijo: el operador elige la subcarpeta REAL
+// — el servicio en curso — y el lote declara `01_Servicios/<ese servicio>` en su
+// manifiesto. La lista se lee de la biblioteca, no de una tabla: un servicio nuevo
+// aparece solo, y el destino elegido existe por construccion.
+
+function pintarServicios(op, fase) {
+    const sel = $('selServicio');
+    sel.textContent = '';
+    const agregar = (valor, textoOpcion) => {
+        const o = document.createElement('option');
+        o.value = valor;
+        o.textContent = textoOpcion;
+        sel.appendChild(o);
+    };
+    if (fase === 'cargando') {
+        agregar('', 'Cargando…');
+        sel.disabled = true;
+        return;
+    }
+    if (fase === 'fallo') {
+        agregar('', '(no se pudo leer la lista — vuelve a elegir el tipo, o usa Otro)');
+        sel.disabled = true;
+        return;
+    }
+    const nombres = estado.servicios.get(`${estado.unidad.siteId}|${op.destino}`) || [];
+    if (nombres.length === 0) {
+        agregar('', '(no hay servicios abiertos)');
+        sel.disabled = true;
+        return;
+    }
+    sel.disabled = false;
+    agregar('', '— elige —');
+    for (const n of nombres) agregar(n, n);
+}
+
+async function cargarServicios(op) {
+    const llave = `${estado.unidad.siteId}|${op.destino}`;
+    if (!estado.servicios.has(llave)) {
+        pintarServicios(op, 'cargando');
+        try {
+            const nombres = await estado.cliente.subcarpetas(estado.unidad.siteId, op.destino);
+            // El nombre empieza por la fecha: en orden inverso, lo mas reciente queda arriba.
+            nombres.sort((a, b) => b.localeCompare(a, 'es'));
+            estado.servicios.set(llave, nombres);
+        } catch (_) {
+            // No se guarda nada: volver a elegir el tipo reintenta la lectura.
+        }
+    }
+    if (opcionActual() !== op) return;   // mientras cargaba, eligieron otra cosa
+    pintarServicios(op, estado.servicios.has(llave) ? 'listo' : 'fallo');
+    alCambiar();
 }
 
 // ---------------------------------------------------------------- piezas
@@ -404,6 +462,11 @@ function alCambiar() {
     $('btnCamara').textContent = esDoc ? 'Fotografiar el documento' : 'Tomar fotos';
     pintarMiniaturas(esDoc);
 
+    // El campo de servicio solo existe para las opciones que lo piden (B8).
+    const pideServicio = !!(op && op.elegirSubcarpeta);
+    $('campoServicio').classList.toggle('oculto', !pideServicio);
+    const servicio = pideServicio ? $('selServicio').value : '';
+
     const previa = $('previa');
     previa.textContent = '';
     if (!op || !estado.unidad) { previa.textContent = '—'; }
@@ -418,6 +481,9 @@ function alCambiar() {
             lineas.push(`   ${nombreArchivo(fecha, estado.unidad.clave, 'foto', s, 1)}`);
             if (n > 1) lineas.push(`   … hasta -${String(n).padStart(2, '0')}.jpg`);
         }
+        if (pideServicio && servicio) {
+            lineas.push(`   → se archivará en: ${op.destino}/${servicio}/`);
+        }
         previa.textContent = lineas.join('\n');
     }
 
@@ -426,7 +492,8 @@ function alCambiar() {
         : 'Sin esto no se puede enviar: es lo que permite encontrarlo después.';
 
     $('btnEnviar').disabled = !(
-        estado.unidad && op && concepto.trim() && estado.piezas.length > 0
+        estado.unidad && op && concepto.trim() && estado.piezas.length > 0 &&
+        (!pideServicio || servicio)
     );
 }
 
@@ -435,6 +502,12 @@ function alCambiar() {
 async function enviar() {
     const op = opcionActual();
     if (!op || !estado.unidad || estado.piezas.length === 0) return;
+
+    // El destino del manifiesto: fijo, o armado con el servicio elegido (B8). El nombre
+    // del servicio viene de la propia biblioteca (subcarpetas reales), no de texto libre.
+    const servicio = op.elegirSubcarpeta ? $('selServicio').value : '';
+    if (op.elegirSubcarpeta && !servicio) return;
+    const destinoLote = op.elegirSubcarpeta ? `${op.destino}/${servicio}` : op.destino;
 
     $('btnEnviar').disabled = true;
     $('avance').classList.remove('oculto');
@@ -496,7 +569,7 @@ async function enviar() {
             appVersion: VERSION,
             unidad: unidad.clave,
             etiqueta: op.etiqueta,
-            destino: op.destino,
+            destino: destinoLote,
             tipo: op.tipo,
             fecha,
             concepto: $('txtConcepto').value.trim(),
@@ -570,7 +643,12 @@ $('btnCamara').addEventListener('click', () => $('entradaCamara').click());
 $('btnGaleria').addEventListener('click', () => $('entradaGaleria').click());
 $('entradaCamara').addEventListener('change', e => { agregarArchivos(e.target.files); e.target.value = ''; });
 $('entradaGaleria').addEventListener('change', e => { agregarArchivos(e.target.files); e.target.value = ''; });
-$('selEtiqueta').addEventListener('change', alCambiar);
+$('selEtiqueta').addEventListener('change', () => {
+    const op = opcionActual();
+    if (op && op.elegirSubcarpeta) cargarServicios(op);
+    alCambiar();
+});
+$('selServicio').addEventListener('change', alCambiar);
 $('txtConcepto').addEventListener('input', alCambiar);
 $('btnEnviar').addEventListener('click', enviar);
 

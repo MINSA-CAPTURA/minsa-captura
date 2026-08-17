@@ -6,7 +6,7 @@
 // con un nombre raro en vez de dar error.
 
 import assert from 'node:assert/strict';
-import { conReintento, rutaUrl } from '../subir.js';
+import { conReintento, rutaUrl, crearCliente } from '../subir.js';
 
 let pasadas = 0;
 const fallas = [];
@@ -124,6 +124,44 @@ await pruebaAsync('avisa al usuario cada vez que reintenta', async () => {
         return veces < 3 ? respuesta(503, { 'Retry-After': '0' }) : respuesta(200);
     }, m => avisos.push(m));
     assert.equal(avisos.length, 2, 'el operador se queda sin saber que esta pasando');
+});
+
+// ---------------------------------------------------------------- subcarpetas (B8)
+
+await pruebaAsync('subcarpetas: pide la ruta bien codificada y filtra solo carpetas', async () => {
+    let urlPedida = '';
+    const fetchReal = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+        urlPedida = String(url);
+        return {
+            ok: true, status: 200, headers: { get: () => null },
+            json: async () => ({ value: [
+                { name: '2026-06-22_OC-4500093931', folder: {} },
+                { name: 'indice.xlsx', file: {} },
+                { name: '1000080660', folder: {} }
+            ] })
+        };
+    };
+    try {
+        const c = crearCliente('https://g', 'tok');
+        const nombres = await c.subcarpetas('SITIO', '01_Servicios');
+        assert.deepEqual(nombres, ['2026-06-22_OC-4500093931', '1000080660'],
+            'un archivo suelto no es un servicio');
+        assert.ok(urlPedida.includes('/sites/SITIO/drive/root:/01_Servicios:/children'),
+            'la ruta no se armo bien: ' + urlPedida);
+    } finally { globalThis.fetch = fetchReal; }
+});
+
+await pruebaAsync('subcarpetas: un error NO devuelve lista vacia — truena y se ve', async () => {
+    const fetchReal = globalThis.fetch;
+    globalThis.fetch = async () => ({
+        ok: false, status: 404, headers: { get: () => null }, json: async () => ({})
+    });
+    try {
+        const c = crearCliente('https://g', 'tok');
+        await assert.rejects(c.subcarpetas('S', 'x'), /404/,
+            'una lista vacia por error se leeria como "no hay servicios"');
+    } finally { globalThis.fetch = fetchReal; }
 });
 
 console.log('');

@@ -54,20 +54,36 @@ export function normalizarCatalogo(crudos) {
             continue;
         }
 
+        // B8: un destino que termina en '/*' pide elegir SUBCARPETA al capturar (hoy, el
+        // '01_Servicios/*' de PITEPEC): la app lista las subcarpetas reales de la base y
+        // el operador escoge el servicio en curso. El marcador se interpreta AQUI y nunca
+        // llega a validarDestino, que rechaza '*' con razon (A6).
+        const pideSubcarpeta = destino.endsWith('/*');
+        const base = pideSubcarpeta ? destino.slice(0, -1) : destino;
+
         // La validacion que importa: el destino es una ruta y viene de una lista editable.
-        const v = validarDestino(destino);
+        const v = validarDestino(base);
         if (!v.ok) {
             descartados.push({ renglon: f, motivo: `"${etiqueta}" tiene un destino invalido: ${v.motivo}` });
             continue;
         }
 
-        opciones.push({
+        const opcion = {
             etiqueta,
             unidad,
             destino: v.segmentos.join('/'),   // normalizado, sin barras sueltas
             tipo,
             orden: numero(f[CAMPOS.orden], 500)
-        });
+        };
+        if (pideSubcarpeta) {
+            if (opcion.destino === '') {
+                descartados.push({ renglon: f, motivo: `"${etiqueta}" pide subcarpeta sin carpeta base` });
+                continue;
+            }
+            // Solo se agrega cuando aplica: una opcion normal no carga el campo.
+            opcion.elegirSubcarpeta = true;
+        }
+        opciones.push(opcion);
     }
 
     opciones.sort((a, b) =>

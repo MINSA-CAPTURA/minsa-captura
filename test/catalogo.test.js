@@ -152,6 +152,40 @@ prueba('sin catalogo no truena', () => {
     assert.deepEqual(normalizarCatalogo(null).opciones, []);
 });
 
+// --- B8: el destino con marcador '/*' (elegir subcarpeta al capturar)
+
+prueba('B8: el destino con /* pide subcarpeta y valida la base', () => {
+    const { opciones, descartados } = normalizarCatalogo([
+        fila('Evidencia de servicio', 'PITEPEC', '01_Servicios/*', 'foto', 10)
+    ]);
+    assert.equal(descartados.length, 0);
+    assert.equal(opciones[0].destino, '01_Servicios');
+    assert.equal(opciones[0].elegirSubcarpeta, true);
+});
+
+prueba('B8: una opcion normal NO carga el campo elegirSubcarpeta', () => {
+    const { opciones } = normalizarCatalogo([fila('A', 'X', 'a/', 'foto', 1)]);
+    assert.ok(!('elegirSubcarpeta' in opciones[0]),
+        'el campo se filtraria a todos los manifiestos sin necesidad');
+});
+
+prueba('B8: /* con base invalida o vacia se descarta', () => {
+    const { opciones, descartados } = normalizarCatalogo([
+        fila('A', 'X', '../fuera/*', 'foto', 1),
+        fila('B', 'X', '/*', 'foto', 2)
+    ]);
+    assert.equal(opciones.length, 0);
+    assert.equal(descartados.length, 2);
+});
+
+prueba('B8: un * que no es el marcador sigue rechazado', () => {
+    const { descartados } = normalizarCatalogo([
+        fila('A', 'X', '01_*/algo', 'foto', 1),
+        fila('B', 'X', 'a*', 'foto', 2)
+    ]);
+    assert.equal(descartados.length, 2);
+});
+
 // --- El catalogo real, tal como quedo cargado
 
 prueba('el catalogo real de las 5 unidades pasa entero', () => {

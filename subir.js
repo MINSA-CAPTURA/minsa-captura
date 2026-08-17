@@ -78,6 +78,20 @@ export function crearCliente(graph, token) {
         },
 
         /**
+         * Los nombres de las SUBCARPETAS de una carpeta. Existe por los destinos '<base>/*'
+         * del catalogo (B8): el operador elige entre las subcarpetas reales — el servicio
+         * en curso dentro de 01_Servicios — y asi el destino elegido existe por
+         * construccion, en vez de salir de una tabla que alguien tendria que mantener.
+         */
+        async subcarpetas(siteId, ruta, avisar) {
+            const r = await pedir(
+                `${graph}/sites/${siteId}/drive/root:/${rutaUrl(ruta)}:/children?$select=name,folder&$top=500`,
+                {}, avisar);
+            if (!r.ok) throw new Error('no se pudo leer la lista: ' + await motivo(r));
+            return (await r.json()).value.filter(x => x.folder).map(x => x.name);
+        },
+
+        /**
          * Crea la carpeta del lote y devuelve su ruta real.
          *
          * conflictBehavior 'rename' importa: si dos personas suben el mismo dia sobre el
