@@ -7,8 +7,22 @@
 //
 // Ojo: un service worker se queda instalado. Si algún día hay que sacar uno malo, se sube
 // el número de CACHE y se borra lo viejo en 'activate' — que es justo lo que hace esto.
+//
+// LA SEGUNDA CACHÉ, la que no se ve (2026-08-17). Subir el número de CACHE re-descarga el
+// armazón, pero `addAll` y `fetch()` pasan por la CACHÉ HTTP del navegador, y GitHub Pages
+// sirve todo con `Cache-Control: max-age=600`. O sea que el service worker nuevo se
+// instalaba bien y llenaba su caché nueva con los archivos VIEJOS: el teléfono se quedaba
+// en 0.6.0 con la app recién publicada y sin ningún error a la vista. Por eso cada petición
+// del armazón lleva `cache: 'reload'`, que salta esa caché y va a la red de verdad.
+// Sin eso, el número de CACHE da una sensación de control que no tiene.
 
-const CACHE = 'minsa-captura-v10';
+const CACHE = 'minsa-captura-v11';
+
+// Pide un recurso del armazón SALTÁNDOSE la caché HTTP. Es la única forma de que "versión
+// nueva" signifique la del servidor y no la que el navegador guardó hace diez minutos.
+function traerDeLaRed(recurso) {
+    return fetch(new Request(recurso, { cache: 'reload', credentials: 'same-origin' }));
+}
 
 const ARMAZON = [
     './',
@@ -33,10 +47,19 @@ const ARMAZON = [
     './iconos/icono-512-recortable.png'
 ];
 
+// Se conserva la atomicidad de addAll —si una pieza falla, el armazón no se da por bueno a
+// medias—, pero pidiendo cada una a la red de verdad.
 self.addEventListener('install', evento => {
     evento.waitUntil(
         caches.open(CACHE)
-            .then(c => c.addAll(ARMAZON))
+            .then(c => Promise.all(ARMAZON.map(recurso =>
+                traerDeLaRed(recurso).then(respuesta => {
+                    if (!respuesta || !respuesta.ok) {
+                        throw new Error(`no se pudo precargar ${recurso}`);
+                    }
+                    return c.put(recurso, respuesta);
+                })
+            )))
             .then(() => self.skipWaiting())
     );
 });
@@ -59,9 +82,11 @@ self.addEventListener('fetch', evento => {
     if (evento.request.method !== 'GET') return;
 
     // El armazón: primero la red, y si no hay, lo guardado. Así una versión nueva se
-    // toma en cuanto haya señal, en vez de quedarse pegada la vieja.
+    // toma en cuanto haya señal, en vez de quedarse pegada la vieja. "La red" tiene que ser
+    // la red: sin `cache: 'reload'` esto lo contesta la caché HTTP y se cachea lo viejo
+    // encima de lo viejo, que es lo que dejó un teléfono en 0.6.0 con 0.6.1 ya publicada.
     evento.respondWith(
-        fetch(evento.request)
+        traerDeLaRed(evento.request.url)
             .then(respuesta => {
                 if (respuesta && respuesta.ok) {
                     const copia = respuesta.clone();

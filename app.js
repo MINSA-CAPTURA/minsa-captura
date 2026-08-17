@@ -32,7 +32,7 @@ import { jpegsAPdf } from './pdf.js';
 import { crearCliente } from './subir.js';
 import { NOMBRE_MANIFIESTO, construirManifiesto, bytesDelManifiesto } from './manifiesto.js';
 
-const VERSION = '0.6.1';
+const VERSION = '0.6.2';
 
 const $ = id => document.getElementById(id);
 
@@ -773,8 +773,28 @@ $('pie').textContent = `MINSA Captura ${VERSION}`;
 
 arrancar();
 
+// El service worker, y la otra mitad que faltaba: darse cuenta de que hay versión nueva.
+//
+// Registrar no es enterarse. Un service worker ya instalado sigue sirviendo su armazón, y
+// el navegador sólo busca uno nuevo cuando le toca; el operador puede picar "recargar" y
+// seguir viendo la versión vieja sin ningún error — le pasó a Carlos con 0.6.1 ya
+// publicada. `update()` lo pregunta de frente en cada carga, y cuando el service worker
+// nuevo toma el control se recarga la página UNA vez para que corra el código nuevo.
 if ('serviceWorker' in navigator) {
+    // Si no había controlador, esta carga ES la primera instalación: ahí `controllerchange`
+    // dispara solo, y recargar sería un rebote gratis en la cara del operador.
+    const habiaControlador = !!navigator.serviceWorker.controller;
+    let recargando = false;
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!habiaControlador || recargando) return;
+        recargando = true;
+        window.location.reload();
+    });
+
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => { /* sin sw se vive igual */ });
+        navigator.serviceWorker.register('./sw.js')
+            .then(registro => registro.update())
+            .catch(() => { /* sin sw se vive igual */ });
     });
 }

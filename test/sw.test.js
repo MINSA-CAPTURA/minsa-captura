@@ -32,4 +32,24 @@ for (const m of modulos) {
 // archivo deja al celular con la version vieja. El numero de CACHE tiene que moverse.
 ok(/const CACHE = 'minsa-captura-v(\d+)'/.test(sw), 'sw.js versiona su caché');
 
+// LA SEGUNDA CACHE, la que no se ve (2026-08-17). Subir el numero de CACHE re-descarga el
+// armazon, pero `addAll` y `fetch()` pasan por la CACHE HTTP del navegador, y GitHub Pages
+// sirve todo con max-age=600. El service worker nuevo se instalaba y llenaba su cache nueva
+// con los archivos VIEJOS: el telefono se quedo en 0.6.0 con 0.6.1 ya publicada, sin ningun
+// error. Estas tres pruebas existen porque el sintoma es indistinguible de "todo bien".
+ok(!/\.addAll\s*\(/.test(sw),
+   'sw.js no usa addAll: pasa por la caché HTTP y precarga lo viejo sin avisar');
+ok(/cache:\s*'reload'/.test(sw),
+   "sw.js pide el armazón con cache: 'reload', que es lo que salta la caché HTTP");
+ok(!/[^.]\bfetch\(evento\.request\)/.test(sw),
+   'el fetch handler no pide el request tal cual: eso lo contesta la caché HTTP');
+
+// La otra mitad: registrar no es enterarse. Sin update() y sin reaccionar al cambio de
+// controlador, el operador recarga y sigue viendo la version vieja.
+const app = readFileSync(join(raiz, 'app.js'), 'utf8');
+ok(/registro\.update\(\)/.test(app), 'app.js pregunta por una versión nueva en cada carga');
+ok(/controllerchange/.test(app), 'app.js reacciona cuando el service worker nuevo toma el control');
+ok(/habiaControlador/.test(app),
+   'la recarga está guardada contra la primera instalación, que si no rebota sola');
+
 console.log(`\n  sw.js — ${n} pruebas OK\n`);
